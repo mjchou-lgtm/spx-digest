@@ -1,0 +1,44 @@
+name: midsession
+# Cron is UTC and GitHub has no DST: one entry per offset (PDT, PST); the script
+# exits with a one-line skip reason unless now is inside the post's Pacific-time window.
+on:
+  schedule:
+    - cron: "30 16 * * 1-5"
+    - cron: "30 17 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Run now, ignoring the time window (unchecked = behave like the cron run)"
+        type: boolean
+        default: true
+      date:
+        description: "YYYY-MM-DD to replay (blank = today PT). Past dates have no option chain."
+        type: string
+        default: ""
+      dry_run:
+        description: "Skip the Claude call; output uploaded as an artifact, nothing committed"
+        type: boolean
+        default: false
+      confirm_empty:
+        description: "On a non-trading day, publish even if there is nothing to discuss"
+        type: boolean
+        default: false
+
+concurrency:
+  group: digest-writer
+  cancel-in-progress: false
+
+jobs:
+  post:
+    uses: ./.github/workflows/_post.yml
+    with:
+      post: midsession
+      scheduled: ${{ github.event_name == 'schedule' || inputs.force == false }}
+      date: ${{ inputs.date || '' }}
+      dry_run: ${{ inputs.dry_run == true }}
+      confirm_empty: ${{ inputs.confirm_empty == true }}
+    secrets: inherit
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
