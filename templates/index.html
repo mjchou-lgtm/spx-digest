@@ -10,6 +10,8 @@
     <a class="slot-link" href="{{ s.post.url }}">{{ badge(s.post.label, s.post.fm.confidence) }}</a>
     {% if s.post.fm.narrative != 'claude' %}<p class="muted">Narrative: {{ s.post.fm.narrative }}</p>{% endif %}
     <p><a href="{{ s.post.url }}">Read the {{ s.post.post_type }} post →</a></p>
+  {% elif s.note %}
+    <p class="muted">— {{ s.note }}</p>
   {% elif s.scheduled %}
     <p class="muted">◷ Scheduled for {{ s.scheduled }} PT</p>
   {% else %}

@@ -67,6 +67,12 @@ def scheduled_time_pt(post_type: str, d: date) -> datetime:
     return slot
 
 
+def posts_on(post_type: str, d: date) -> bool:
+    """Which posts run on a session. Early-close days have no midsession post."""
+    s = session(d)
+    return s is not None and not (post_type == "midsession" and s.early_close)
+
+
 def check_window(post_type: str, now: datetime) -> tuple[bool, str]:
     """Is `now` inside this post's run window today? Returns (ok, one-line reason)."""
     now_pt = now.astimezone(config.PT)
@@ -74,6 +80,8 @@ def check_window(post_type: str, now: datetime) -> tuple[bool, str]:
     s = session(d)
     if s is None:
         return False, f"skip {post_type}: {d} is not an NYSE trading day"
+    if not posts_on(post_type, d):
+        return False, f"skip {post_type}: {d} is an early-close day (no midsession post)"
     slot = scheduled_time_pt(post_type, d)
     delta_min = (now_pt - slot).total_seconds() / 60
     if delta_min < -config.WINDOW_EARLY_TOLERANCE_MIN:

@@ -5,7 +5,7 @@ A static, blog-style daily digest for SPX 0DTE trading: what regime the session 
 | Post | PT | Purpose |
 |---|---|---|
 | `premarket` | 05:45 | Overnight, calendar, regime going into the open |
-| `midsession` | 09:30 | How the open resolved; regime confirmation or change |
+| `midsession` | 09:30 (skipped on early-close days) | How the open resolved; regime confirmation or change |
 | `afternoon` | 11:45 (60 min before an early close) | Pin vs expansion, gamma/charm into the close, what carried |
 
 It is a primer, not a signal service. All numbers and the regime label come from code (`digest/indicators`, `digest/regime.py`); Claude only writes prose from the computed brief.
@@ -82,7 +82,7 @@ Files are never overwritten (exclusive create). A re-run of the same post writes
 
 **Cron and DST.** GitHub cron is UTC and ignores DST, so each post has a PDT entry and a PST entry, and the script skips the one that is an hour off. `afternoon.yml` also has 09:00 PT entries that only do something on NYSE early-close days. GitHub often starts scheduled runs 5–30 minutes late, so the window allows up to 40 minutes. Holidays and early closes come from `pandas_market_calendars` (NYSE).
 
-> TODO: on early-close days `midsession` still runs at 09:30 PT, after the 09:00 PT `afternoon` post. Decide whether midsession should move earlier or be skipped on those days.
+On early-close days there is **no `midsession` post**: the scheduled run skips with a one-line reason, and the afternoon post builds on the premarket post instead. A manual run with `force` can still produce one.
 
 All writers share the concurrency group `digest-writer`, so commits don't race, and pushes retry with `pull --rebase`.
 

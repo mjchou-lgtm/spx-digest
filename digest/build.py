@@ -158,8 +158,9 @@ def build_site(root: Path, out: Path) -> int:
     slots = []
     for ptype in reversed(config.POST_TYPES):  # newest first
         p = latest.get((show.isoformat(), ptype))
-        sched = schedule.scheduled_time_pt(ptype, show).strftime("%H:%M") if schedule.is_trading_day(show) else None
-        slots.append({"post_type": ptype, "post": p, "scheduled": sched})
+        sched = schedule.scheduled_time_pt(ptype, show).strftime("%H:%M") if schedule.posts_on(ptype, show) else None
+        note = "No post on early-close days" if schedule.is_trading_day(show) and not schedule.posts_on(ptype, show) else None
+        slots.append({"post_type": ptype, "post": p, "scheduled": sched, "note": note})
     render("index.html", "index.html", day=show.isoformat(), slots=slots, is_session=schedule.is_trading_day(show),
            early_close=bool(schedule.session(show) and schedule.session(show).early_close))
 

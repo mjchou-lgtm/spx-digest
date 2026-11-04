@@ -87,6 +87,14 @@ def test_both_dst_crons_only_one_runs():
     assert not schedule.check_window("premarket", datetime(2026, 6, 3, 13, 45, tzinfo=utc))[0]
 
 
+def test_no_midsession_on_early_close():
+    ok, reason = schedule.check_window("midsession", datetime(2026, 11, 27, 9, 30, tzinfo=PT))
+    assert not ok and "early-close" in reason
+    assert schedule.check_window("afternoon", datetime(2026, 11, 27, 9, 0, tzinfo=PT))[0]
+    assert schedule.check_window("premarket", datetime(2026, 11, 27, 5, 45, tzinfo=PT))[0]
+    assert schedule.posts_on("midsession", date(2026, 11, 4))
+
+
 def test_skip_reason_on_holiday():
     ok, reason = schedule.check_window("midsession", datetime(2026, 11, 26, 9, 30, tzinfo=PT))
     assert not ok and "not an NYSE trading day" in reason and "\n" not in reason
