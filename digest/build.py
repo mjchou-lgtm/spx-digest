@@ -186,6 +186,9 @@ def build_site(root: Path, out: Path) -> int:
            schema_html=markdown.markdown(schema_md, extensions=MD_EXT),
            relevance=yaml.safe_load(config.REGIME_RULES_PATH.read_text()).get("premium_relevance", {}))
 
+    # Generate page (buttons that dispatch the post workflows).
+    render("run.html", "run/index.html", repo=config.GITHUB_REPO, post_types=config.POST_TYPES)
+
     # RSS + latest.json.
     ordered = sorted(latest.values(), key=lambda p: p.fm.get("generated_at") or "", reverse=True)
     base = config.SITE_BASE_URL.rstrip("/")

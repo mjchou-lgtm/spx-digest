@@ -41,3 +41,12 @@ tbody th { color: var(--muted); font-weight: 500; width: 45%; }
 .adate { display: block; font-weight: 600; }
 .apost { display: inline-block; margin: 4px 10px 0 0; text-decoration: none; color: var(--text); }
 .schema table { font-size: 0.85rem; }
+.gen-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+.btn { display: inline-block; padding: 10px 16px; border-radius: 8px; border: 1px solid var(--link); background: #1b2433; color: var(--text); font: inherit; font-weight: 600; text-decoration: none; text-transform: capitalize; cursor: pointer; }
+.btn:hover, .btn:focus-visible { background: #24314a; }
+.btn-quiet { border-color: var(--line); background: transparent; font-weight: 400; }
+#gen.busy .gen-buttons .btn { opacity: .5; pointer-events: none; }
+.gen-opts { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; margin: 0 0 12px; }
+.gen-opts label { display: block; margin: 6px 0; font-size: .95rem; }
+#gen-token-form { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+#gen-token-input { flex: 1 1 220px; min-width: 0; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; }

@@ -131,7 +131,7 @@ def test_build_site_from_fixture(tmp_path, brief_mid):
     out = tmp_path / "site"
     assert build.build_site(root, out) == 1
     for f in ["index.html", "archive/index.html", "data/index.html", "about/index.html", "feed.xml", "api/latest.json",
-              "posts/2026-11-04/midsession.html", "static/style.css"]:
+              "posts/2026-11-04/midsession.html", "static/style.css", "run/index.html", "static/run.js"]:
         assert (out / f).exists(), f
     page = (out / "posts/2026-11-04/midsession.html").read_text()
     assert "Narrative unavailable" in page and "Indicator brief" in page and "Data quality" in page

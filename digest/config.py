@@ -88,7 +88,8 @@ CLAUDE_MAX_TOKENS = 3000
 CLAUDE_EFFORT = "low"
 
 SITE_TITLE = "SPX 0DTE Digest"
-SITE_BASE_URL = os.environ.get("DIGEST_SITE_URL", "")  # e.g. https://<user>.github.io/spx-digest
+SITE_BASE_URL = os.environ.get("DIGEST_SITE_URL", "")
+GITHUB_REPO = os.environ.get("GITHUB_REPOSITORY", "mjchou-lgtm/spx-digest")  # for the Generate page  # e.g. https://<user>.github.io/spx-digest
 
 
 def anthropic_key() -> str | None:

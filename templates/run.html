@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Generate · {{ site_title }}{% endblock %}
+{% block main %}
+<h1>Generate a post</h1>
+<p class="muted">Each button runs that post's GitHub Actions workflow now, outside its scheduled window. The run writes a new post (or a new version, e.g. <code>premarket.2</code>, if one exists for today), commits it and redeploys this site, which takes about 2–4 minutes.</p>
+
+<div id="gen" data-repo="{{ repo }}" data-site="{{ rel }}index.html">
+  <div class="gen-buttons">
+    {% for p in post_types %}
+    <a class="btn" data-post="{{ p }}" href="https://github.com/{{ repo }}/actions/workflows/{{ p }}.yml" target="_blank" rel="noopener">Generate {{ p }}</a>
+    {% endfor %}
+  </div>
+
+  <fieldset class="gen-opts">
+    <legend>Options</legend>
+    <label><input type="checkbox" id="opt-empty"> Publish on a non-trading day even if there is nothing to discuss</label>
+    <label><input type="checkbox" id="opt-dry"> Dry run (no Claude call, nothing committed; output is a run artifact)</label>
+  </fieldset>
+
+  <div id="gen-status" class="slot" role="status" aria-live="polite" hidden></div>
+
+  <details class="brief" id="gen-token">
+    <summary id="gen-token-summary">One-click mode: not set up (buttons open GitHub)</summary>
+    <p>Without a token the buttons open the workflow on GitHub, where you press <b>Run workflow</b>. To run straight from here, save a GitHub token in this browser:</p>
+    <ol>
+      <li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Create a fine-grained token</a>: Repository access → <b>Only select repositories</b> → <code>{{ repo }}</code>; Permissions → <b>Actions: Read and write</b>. Nothing else.</li>
+      <li>Paste it below and save. It is kept in this browser's local storage only and sent only to <code>api.github.com</code>.</li>
+    </ol>
+    <p class="muted">Anyone with this token can start these workflows (each run makes one Claude API call); it cannot read secrets or push code. Set an expiry, and use Forget on shared devices.</p>
+    <form id="gen-token-form" autocomplete="off">
+      <input type="password" id="gen-token-input" placeholder="github_pat_…" aria-label="GitHub fine-grained token" spellcheck="false">
+      <button type="submit" class="btn">Save</button>
+      <button type="button" class="btn btn-quiet" id="gen-token-forget">Forget</button>
+    </form>
+  </details>
+</div>
+<script src="{{ rel }}static/run.js"></script>
+{% endblock %}
