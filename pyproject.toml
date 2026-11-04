@@ -1,0 +1,31 @@
+[project]
+name = "spx-digest"
+version = "0.1.0"
+description = "Read-only SPX 0DTE daily macro digest (static site)."
+requires-python = ">=3.11"
+dependencies = [
+  "anthropic>=2.4",
+  "beautifulsoup4",
+  "feedparser",
+  "jinja2",
+  "lxml",
+  "markdown",
+  "numpy",
+  "pandas",
+  "pandas_market_calendars",
+  "pydantic>=2",
+  "python-dotenv",
+  "pyyaml",
+  "requests",
+  "scipy",
+  "yfinance",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["digest*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

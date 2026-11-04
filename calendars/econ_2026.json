@@ -1,0 +1,38 @@
+{
+  "sources": {
+    "BEA": "https://www.bea.gov/news/schedule",
+    "BLS/Census (via FRED release calendar)": "https://fred.stlouisfed.org/releases/calendar"
+  },
+  "refreshed_at": "2026-11-04T17:39:57+00:00",
+  "year": 2026,
+  "events": [
+    {
+      "date": "2026-11-25",
+      "event": "GDP",
+      "title": "GDP (Second Estimate) and Corporate Profits, 3rd Quarter 2026",
+      "time_et": "08:30",
+      "agency": "BEA"
+    },
+    {
+      "date": "2026-11-25",
+      "event": "PCE",
+      "title": "Personal Income and Outlays, October 2026",
+      "time_et": "08:30",
+      "agency": "BEA"
+    },
+    {
+      "date": "2026-12-23",
+      "event": "GDP",
+      "title": "GDP (Third Estimate), Industries, Corporate Profits, State GDP, and State Personal Income, 3rd Quarter 2026",
+      "time_et": "08:30",
+      "agency": "BEA"
+    },
+    {
+      "date": "2026-12-23",
+      "event": "PCE",
+      "title": "Personal Income and Outlays, November 2026",
+      "time_et": "08:30",
+      "agency": "BEA"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+# One phrase per line, case-insensitive. Checked against every rendered post
+# (tests) and every Claude response (runtime: a hit falls back to the brief table).
+risky
+risk management
+disclaimer
+position size
+position sizing
+not financial advice
+not investment advice
+buy the
+sell the
+consult a
+do your own research
+trade at your own
+manage your risk
+stop loss
+stop-loss
