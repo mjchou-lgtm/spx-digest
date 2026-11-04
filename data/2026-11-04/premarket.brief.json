@@ -1,0 +1,265 @@
+{
+ "meta": {
+  "schema_version": "1.0",
+  "date": "2026-11-04",
+  "post_type": "premarket",
+  "version": 1,
+  "generated_at": "2026-11-04T18:41:00+00:00",
+  "data_as_of": "2026-11-04T13:40:00-05:00",
+  "as_of_pt": "2026-11-04 10:40",
+  "session_open_pt": "06:30",
+  "session_close_pt": "13:00",
+  "is_trading_day": true,
+  "is_early_close": false,
+  "market_closed_mode": false,
+  "spot_source": "SPX 5m"
+ },
+ "levels": {
+  "spot": 7701.27,
+  "prior_date": "2026-11-03",
+  "prior_open": 7552.92,
+  "prior_high": 7594.61,
+  "prior_low": 7545.39,
+  "prior_close": 7568.92,
+  "es_spx_basis_pts": 24.58,
+  "overnight_high": 7667.92,
+  "overnight_low": 7465.42,
+  "overnight_range_pts": 202.5,
+  "gap_pts": 66.89,
+  "gap_pct": 0.88,
+  "gap_em_fraction": 3.4,
+  "weekly_open": 7610.83,
+  "monthly_open": 7610.83,
+  "atr20_pts": 77.0,
+  "adr10_pts": 65.95,
+  "session_open": 7635.81,
+  "session_high": 7715.57,
+  "session_low": 7635.81,
+  "range_used_pts": 79.76,
+  "range_used_atr_pct": 103.58
+ },
+ "vol": {
+  "vix": 16.99,
+  "vix_change_pts": -3.84,
+  "vix_change_pct": -18.43,
+  "vix9d": 15.91,
+  "vix3m": 19.05,
+  "vix6m": 20.89,
+  "vix9d_vix_ratio": 0.94,
+  "vix_vix3m_ratio": 0.89,
+  "term_structure_label": "contango",
+  "vvix": 92.44,
+  "vvix_change_pct": -13.93,
+  "skew": 150.01,
+  "rv10_pct": 13.48,
+  "rv20_pct": 11.37,
+  "vix_minus_rv20_pts": 5.62,
+  "expected_move_0dte_pts": 19.7,
+  "expected_move_0dte_pct": 0.26,
+  "expected_move_day_pts": 19.7,
+  "expected_move_day_source": "0DTE ATM straddle",
+  "expected_move_weekly_pts": 73.1,
+  "expected_move_weekly_pct": 0.95,
+  "weekly_expiry": "2026-11-06",
+  "cboe_stats_date": "2026-11-03",
+  "cboe_total_pcr": 0.86,
+  "cboe_index_pcr": 1.02,
+  "cboe_equity_pcr": 0.6,
+  "cboe_spx_pcr": 1.13
+ },
+ "positioning": {
+  "chain_source": "^SPX",
+  "chain_fallback_used": false,
+  "expiry_0dte": "2026-11-04",
+  "pcr_volume_0dte": 1.01,
+  "pcr_oi_0dte": 1.26,
+  "call_oi_top_strikes": [
+   8500.0,
+   8800.0,
+   7900.0,
+   7800.0,
+   7700.0
+  ],
+  "put_oi_top_strikes": [
+   6300.0,
+   6000.0,
+   5800.0,
+   7250.0,
+   7400.0
+  ],
+  "nearest_oi_strike": 7700.0,
+  "spot_to_nearest_oi_strike_pts": 1.27,
+  "net_gex_at_spot_usd_bn": 26.8,
+  "gamma_flip_approx": 7608.72,
+  "spot_vs_gamma_flip_pts": 92.55,
+  "spot_vs_gamma_flip": "above",
+  "gex_method": "approximate, OI-based (OI x BS gamma x 100 x spot^2 x 0.01; calls +, puts -). Not dealer positioning."
+ },
+ "cross_asset": {
+  "es_change_pct": 1.83,
+  "nq_change_pct": 1.38,
+  "rty_change_pct": 1.47,
+  "us10y_yield_pct": 4.9,
+  "us10y_change_bp": -4.8,
+  "us5y_yield_pct": 4.7,
+  "us3m_yield_pct": 4.03,
+  "dxy": 101.53,
+  "dxy_change_pct": -0.34,
+  "oil": 88.83,
+  "oil_change_pct": -7.56,
+  "gold": 4074.5,
+  "gold_change_pct": 3.4,
+  "fred_as_of": "2026-11-03",
+  "fred_dgs10_pct": 4.91,
+  "fred_dgs2_pct": 4.59,
+  "fred_t10y2y_pct": 0.34,
+  "fred_dff_pct": 3.88,
+  "fred_vixcls": 20.83
+ },
+ "breadth": {
+  "spy_change_pct": 1.78,
+  "rsp_change_pct": 1.76,
+  "rsp_minus_spy_pct": -0.03,
+  "qqq_change_pct": 1.3,
+  "iwm_change_pct": 1.45,
+  "qqq_minus_iwm_pct": -0.14,
+  "sectors_up_count": 9,
+  "sectors_total": 11,
+  "sector_ranking": [
+   "XLY",
+   "XLC",
+   "XLP",
+   "XLF",
+   "XLRE",
+   "XLV",
+   "XLB",
+   "XLU",
+   "XLK",
+   "XLI",
+   "XLE"
+  ],
+  "sector_change_pct": {
+   "XLK": 0.28,
+   "XLF": 2.96,
+   "XLE": -5.18,
+   "XLV": 2.68,
+   "XLY": 4.62,
+   "XLP": 3.65,
+   "XLI": -1.11,
+   "XLU": 0.58,
+   "XLRE": 2.78,
+   "XLB": 2.08,
+   "XLC": 3.82
+  },
+  "megacap_change_pct": {
+   "NVDA": -1.39,
+   "AAPL": 6.24,
+   "MSFT": 6.62,
+   "AMZN": 7.1,
+   "GOOGL": 3.91,
+   "META": 1.87,
+   "TSLA": -2.34,
+   "AVGO": -1.5
+  },
+  "megacap_avg_change_pct": 2.56
+ },
+ "calendar": {
+  "events_today": [],
+  "events_next_session": [],
+  "next_session_date": "2026-11-05",
+  "next_fomc_date": "2026-12-09",
+  "days_to_next_fomc": 35,
+  "high_event_later_today": false,
+  "next_high_event_time_et": null,
+  "headlines": [
+   {
+    "title": "‘I have no financial safety net’: I’m 66, rely on Social Security and have $500 in savings. What politician speaks for me?",
+    "source": "MarketWatch Top Stories",
+    "published_utc": "2026-11-04T18:37:00+00:00"
+   },
+   {
+    "title": "10-year Treasury yield slides as traders mull over Democrats' midterm victories, oil prices drop",
+    "source": "CNBC Markets",
+    "published_utc": "2026-11-04T17:11:00+00:00"
+   },
+   {
+    "title": "Federal Reserve Board announces approval of application by The Bank of Nova Scotia",
+    "source": "Federal Reserve",
+    "published_utc": "2026-10-29T20:30:00+00:00"
+   },
+   {
+    "title": "These stocks have soared the most today after the Democrats trounced Trump",
+    "source": "MarketWatch Top Stories",
+    "published_utc": "2026-11-04T18:29:00+00:00"
+   },
+   {
+    "title": "Stock market after midterm elections: What S&P 500 history shows",
+    "source": "CNBC Markets",
+    "published_utc": "2026-11-03T18:21:05+00:00"
+   },
+   {
+    "title": "Federal Reserve issues FOMC statement",
+    "source": "Federal Reserve",
+    "published_utc": "2026-10-28T18:00:00+00:00"
+   },
+   {
+    "title": "These 12 stocks are good bets to beat the 10-year Treasury over the next decade",
+    "source": "MarketWatch Top Stories",
+    "published_utc": "2026-11-04T18:03:00+00:00"
+   },
+   {
+    "title": "Texas governor race tightens in prediction markets, but Abbott remains favored",
+    "source": "CNBC Markets",
+    "published_utc": "2026-11-03T13:33:11+00:00"
+   },
+   {
+    "title": "Federal Reserve Board announces termination of enforcement actions with Gardner Bancshares, Inc. and Small Business Bank",
+    "source": "Federal Reserve",
+    "published_utc": "2026-10-16T15:00:00+00:00"
+   },
+   {
+    "title": "Watch out for Big Tech companies like Meta and Alphabet issuing more shares and diluting your stock ownership",
+    "source": "MarketWatch Top Stories",
+    "published_utc": "2026-11-04T17:44:00+00:00"
+   }
+  ]
+ },
+ "intraday": {
+  "minutes_since_open": null,
+  "or_high": null,
+  "or_low": null,
+  "or_complete": false,
+  "spot_vs_or": null,
+  "vwap": null,
+  "vwap_method": null,
+  "spot_minus_vwap_pts": null,
+  "rv_today_pct": null,
+  "realized_range_em_fraction": null,
+  "high_retested": null,
+  "low_retested": null
+ },
+ "regime": {
+  "label": "TREND_UP",
+  "confidence": "high",
+  "rules_fired": [
+   "TREND_UP.direction_up: spot > prior_close",
+   "TREND_UP.gap_vs_em: gap >= 0.5 x day expected move",
+   "TREND_UP.breadth_confirms: sectors_up_count >= 8 of 11",
+   "TREND_UP.equal_weight_confirms: rsp_minus_spy_pct >= -0.1",
+   "TREND_UP.vix_opposite: vix_change_pct <= -2"
+  ],
+  "scores": {
+   "TREND_UP": 1.0,
+   "TREND_DOWN": 0.2,
+   "RANGE": 0.5,
+   "EVENT_WAIT": 0.2,
+   "VOL_EXPANSION": 0.0
+  }
+ },
+ "data_quality": {
+  "null_fields": [],
+  "fallbacks": [],
+  "source_errors": [],
+  "notes": []
+ }
+}
