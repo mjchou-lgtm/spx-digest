@@ -50,3 +50,4 @@ tbody th { color: var(--muted); font-weight: 500; width: 45%; }
 .gen-opts label { display: block; margin: 6px 0; font-size: .95rem; }
 #gen-token-form { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 #gen-token-input { flex: 1 1 220px; min-width: 0; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; }
+.gen-bar { margin-top: 24px; } .gen-bar h2 { margin-bottom: 0; }

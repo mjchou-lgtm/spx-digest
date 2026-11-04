@@ -19,4 +19,13 @@
   {% endif %}
 </section>
 {% endfor %}
+<section id="gen" class="gen-bar" data-repo="{{ repo }}" data-site="{{ rel }}index.html">
+  <h2>Generate now</h2>
+  <div class="gen-buttons">
+    {% for p in post_types %}<a class="btn" data-post="{{ p }}" href="https://github.com/{{ repo }}/actions/workflows/{{ p }}.yml" target="_blank" rel="noopener">{{ p }}</a>{% endfor %}
+  </div>
+  <div id="gen-status" class="slot" role="status" aria-live="polite" hidden></div>
+  <p class="muted"><a href="{{ rel }}run/index.html">Options and one-click setup →</a></p>
+</section>
+<script src="{{ rel }}static/run.js"></script>
 {% endblock %}

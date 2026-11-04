@@ -14,6 +14,7 @@
   function getToken() { try { return localStorage.getItem(KEY) || ""; } catch (e) { return ""; } }
   function setToken(t) { try { t ? localStorage.setItem(KEY, t) : localStorage.removeItem(KEY); } catch (e) {} refreshSummary(); }
   function refreshSummary() {
+    if (!summary) return;
     summary.textContent = getToken() ? "One-click mode: token saved in this browser" : "One-click mode: not set up (buttons open GitHub)";
   }
 
@@ -28,6 +29,7 @@
     return fetch(API + path, opts);
   }
 
+  function checked(id) { var el = document.getElementById(id); return !!(el && el.checked); }
   function show(html) { statusEl.hidden = false; statusEl.innerHTML = html; }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function link(url, text) { return '<a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(text) + "</a>"; }
@@ -58,8 +60,7 @@
   }
 
   async function dispatch(post) {
-    var dry = document.getElementById("opt-dry").checked;
-    var empty = document.getElementById("opt-empty").checked;
+    var dry = checked("opt-dry"), empty = checked("opt-empty");
     var since = Date.now() - 15000;  // tolerate clock skew vs GitHub
     show("Starting <b>" + esc(post) + "</b>…");
     var res = await gh("/workflows/" + post + ".yml/dispatches", {
@@ -110,13 +111,16 @@
     });
   });
 
-  document.getElementById("gen-token-form").addEventListener("submit", function (ev) {
-    ev.preventDefault();
-    var inp = document.getElementById("gen-token-input");
-    var t = inp.value.trim();
-    if (t) setToken(t);
-    inp.value = "";
-  });
-  document.getElementById("gen-token-forget").addEventListener("click", function () { setToken(""); });
+  var form = document.getElementById("gen-token-form");
+  if (form) {
+    form.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var inp = document.getElementById("gen-token-input");
+      var t = inp.value.trim();
+      if (t) setToken(t);
+      inp.value = "";
+    });
+    document.getElementById("gen-token-forget").addEventListener("click", function () { setToken(""); });
+  }
   refreshSummary();
 })();
