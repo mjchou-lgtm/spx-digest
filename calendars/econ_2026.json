@@ -3,9 +3,338 @@
     "BEA": "https://www.bea.gov/news/schedule",
     "BLS/Census (via FRED release calendar)": "https://fred.stlouisfed.org/releases/calendar"
   },
-  "refreshed_at": "2026-11-04T17:39:57+00:00",
+  "refreshed_at": "2026-11-04T18:39:30+00:00",
   "year": 2026,
   "events": [
+    {
+      "date": "2026-01-09",
+      "event": "NFP",
+      "title": "Employment Situation",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-01-13",
+      "event": "CPI",
+      "title": "Consumer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-01-14",
+      "event": "PPI",
+      "title": "Producer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-01-14",
+      "event": "RETAIL_SALES",
+      "title": "Advance Monthly Sales for Retail and Food Services",
+      "time_et": "08:30",
+      "agency": "Census"
+    },
+    {
+      "date": "2026-01-30",
+      "event": "PPI",
+      "title": "Producer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-02-10",
+      "event": "RETAIL_SALES",
+      "title": "Advance Monthly Sales for Retail and Food Services",
+      "time_et": "08:30",
+      "agency": "Census"
+    },
+    {
+      "date": "2026-02-11",
+      "event": "NFP",
+      "title": "Employment Situation",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-02-13",
+      "event": "CPI",
+      "title": "Consumer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-02-27",
+      "event": "PPI",
+      "title": "Producer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-03-06",
+      "event": "NFP",
+      "title": "Employment Situation",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-03-06",
+      "event": "RETAIL_SALES",
+      "title": "Advance Monthly Sales for Retail and Food Services",
+      "time_et": "08:30",
+      "agency": "Census"
+    },
+    {
+      "date": "2026-03-11",
+      "event": "CPI",
+      "title": "Consumer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-03-18",
+      "event": "PPI",
+      "title": "Producer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-04-01",
+      "event": "RETAIL_SALES",
+      "title": "Advance Monthly Sales for Retail and Food Services",
+      "time_et": "08:30",
+      "agency": "Census"
+    },
+    {
+      "date": "2026-04-03",
+      "event": "NFP",
+      "title": "Employment Situation",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-04-10",
+      "event": "CPI",
+      "title": "Consumer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-04-14",
+      "event": "PPI",
+      "title": "Producer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-04-21",
+      "event": "RETAIL_SALES",
+      "title": "Advance Monthly Sales for Retail and Food Services",
+      "time_et": "08:30",
+      "agency": "Census"
+    },
+    {
+      "date": "2026-05-08",
+      "event": "NFP",
+      "title": "Employment Situation",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-05-12",
+      "event": "CPI",
+      "title": "Consumer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-05-13",
+      "event": "PPI",
+      "title": "Producer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-05-14",
+      "event": "RETAIL_SALES",
+      "title": "Advance Monthly Sales for Retail and Food Services",
+      "time_et": "08:30",
+      "agency": "Census"
+    },
+    {
+      "date": "2026-06-05",
+      "event": "NFP",
+      "title": "Employment Situation",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-06-10",
+      "event": "CPI",
+      "title": "Consumer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-06-11",
+      "event": "PPI",
+      "title": "Producer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-06-17",
+      "event": "RETAIL_SALES",
+      "title": "Advance Monthly Sales for Retail and Food Services",
+      "time_et": "08:30",
+      "agency": "Census"
+    },
+    {
+      "date": "2026-07-02",
+      "event": "NFP",
+      "title": "Employment Situation",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-07-14",
+      "event": "CPI",
+      "title": "Consumer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-07-15",
+      "event": "PPI",
+      "title": "Producer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-07-16",
+      "event": "RETAIL_SALES",
+      "title": "Advance Monthly Sales for Retail and Food Services",
+      "time_et": "08:30",
+      "agency": "Census"
+    },
+    {
+      "date": "2026-08-07",
+      "event": "NFP",
+      "title": "Employment Situation",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-08-12",
+      "event": "CPI",
+      "title": "Consumer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-08-13",
+      "event": "PPI",
+      "title": "Producer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-08-14",
+      "event": "RETAIL_SALES",
+      "title": "Advance Monthly Sales for Retail and Food Services",
+      "time_et": "08:30",
+      "agency": "Census"
+    },
+    {
+      "date": "2026-09-04",
+      "event": "NFP",
+      "title": "Employment Situation",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-09-10",
+      "event": "PPI",
+      "title": "Producer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-09-11",
+      "event": "CPI",
+      "title": "Consumer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-09-16",
+      "event": "RETAIL_SALES",
+      "title": "Advance Monthly Sales for Retail and Food Services",
+      "time_et": "08:30",
+      "agency": "Census"
+    },
+    {
+      "date": "2026-09-28",
+      "event": "RETAIL_SALES",
+      "title": "Advance Monthly Sales for Retail and Food Services",
+      "time_et": "08:30",
+      "agency": "Census"
+    },
+    {
+      "date": "2026-10-02",
+      "event": "NFP",
+      "title": "Employment Situation",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-10-14",
+      "event": "CPI",
+      "title": "Consumer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-10-15",
+      "event": "PPI",
+      "title": "Producer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-10-15",
+      "event": "RETAIL_SALES",
+      "title": "Advance Monthly Sales for Retail and Food Services",
+      "time_et": "08:30",
+      "agency": "Census"
+    },
+    {
+      "date": "2026-11-06",
+      "event": "NFP",
+      "title": "Employment Situation",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-11-10",
+      "event": "CPI",
+      "title": "Consumer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-11-13",
+      "event": "PPI",
+      "title": "Producer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-11-17",
+      "event": "RETAIL_SALES",
+      "title": "Advance Monthly Sales for Retail and Food Services",
+      "time_et": "08:30",
+      "agency": "Census"
+    },
     {
       "date": "2026-11-25",
       "event": "GDP",
@@ -19,6 +348,34 @@
       "title": "Personal Income and Outlays, October 2026",
       "time_et": "08:30",
       "agency": "BEA"
+    },
+    {
+      "date": "2026-12-04",
+      "event": "NFP",
+      "title": "Employment Situation",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-12-10",
+      "event": "CPI",
+      "title": "Consumer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-12-15",
+      "event": "PPI",
+      "title": "Producer Price Index",
+      "time_et": "08:30",
+      "agency": "BLS"
+    },
+    {
+      "date": "2026-12-16",
+      "event": "RETAIL_SALES",
+      "title": "Advance Monthly Sales for Retail and Food Services",
+      "time_et": "08:30",
+      "agency": "Census"
     },
     {
       "date": "2026-12-23",

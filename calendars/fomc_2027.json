@@ -1,0 +1,71 @@
+{
+  "source": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+  "refreshed_at": "2026-11-04T18:39:31+00:00",
+  "year": 2027,
+  "meetings": [
+    {
+      "start_date": "2027-01-26",
+      "decision_date": "2027-01-27",
+      "statement_time_et": "14:00",
+      "press_conference_time_et": "14:30",
+      "sep": false,
+      "minutes_release_date": null
+    },
+    {
+      "start_date": "2027-03-16",
+      "decision_date": "2027-03-17",
+      "statement_time_et": "14:00",
+      "press_conference_time_et": "14:30",
+      "sep": true,
+      "minutes_release_date": null
+    },
+    {
+      "start_date": "2027-04-27",
+      "decision_date": "2027-04-28",
+      "statement_time_et": "14:00",
+      "press_conference_time_et": "14:30",
+      "sep": false,
+      "minutes_release_date": null
+    },
+    {
+      "start_date": "2027-06-08",
+      "decision_date": "2027-06-09",
+      "statement_time_et": "14:00",
+      "press_conference_time_et": "14:30",
+      "sep": true,
+      "minutes_release_date": null
+    },
+    {
+      "start_date": "2027-07-27",
+      "decision_date": "2027-07-28",
+      "statement_time_et": "14:00",
+      "press_conference_time_et": "14:30",
+      "sep": false,
+      "minutes_release_date": null
+    },
+    {
+      "start_date": "2027-09-14",
+      "decision_date": "2027-09-15",
+      "statement_time_et": "14:00",
+      "press_conference_time_et": "14:30",
+      "sep": true,
+      "minutes_release_date": null
+    },
+    {
+      "start_date": "2027-10-26",
+      "decision_date": "2027-10-27",
+      "statement_time_et": "14:00",
+      "press_conference_time_et": "14:30",
+      "sep": false,
+      "minutes_release_date": null
+    },
+    {
+      "start_date": "2027-12-07",
+      "decision_date": "2027-12-08",
+      "statement_time_et": "14:00",
+      "press_conference_time_et": "14:30",
+      "sep": true,
+      "minutes_release_date": null
+    }
+  ]
+}
