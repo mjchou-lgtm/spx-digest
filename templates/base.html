@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>{% block title %}{{ site_title }}{% endblock %}</title>
+<link rel="stylesheet" href="{{ rel }}static/style.css">
+<link rel="alternate" type="application/rss+xml" title="{{ site_title }}" href="{{ rel }}feed.xml">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="{{ rel }}index.html">{{ site_title }}</a>
+  <nav><a href="{{ rel }}archive/index.html">Archive</a><a href="{{ rel }}data/index.html">Data</a><a href="{{ rel }}about/index.html">About</a></nav>
+</header>
+<main>
+{% block main %}{% endblock %}
+</main>
+<footer class="foot">Built {{ built_at }} · read-only digest · <a href="{{ rel }}feed.xml">RSS</a> · <a href="{{ rel }}api/latest.json">api/latest.json</a></footer>
+</body>
+</html>

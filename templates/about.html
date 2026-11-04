@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}About · {{ site_title }}{% endblock %}
+{% block main %}
+<h1>About</h1>
+<p>A read-only macro digest for the SPX session: regime, catalysts that move premiums, and levels to watch. Three posts per trading day (05:45, 09:30, 11:45 PT; the afternoon post moves to 60 minutes before an early close). All numbers and the regime label are computed by code; Claude writes the prose from the computed brief and may not add numbers. Nothing here places, modifies or cancels orders, and the codebase holds no brokerage credentials.</p>
+
+<h2>Data sources</h2>
+<table><tbody>
+<tr><th scope="row">Index, futures, vol, rates, FX, commodities, ETFs, mega-caps</th><td>yfinance (Yahoo Finance), daily and 5-minute bars incl. extended hours. Delayed up to ~15 min.</td></tr>
+<tr><th scope="row">SPX option chain</th><td>yfinance <code>^SPX</code> chain for the day's expiry and the next Friday weekly. If unavailable, SPY with strikes ×10 (flagged in the post).</td></tr>
+<tr><th scope="row">Put/call ratios</th><td>CBOE daily market statistics (JSON behind cboe.com's daily statistics page; the legacy CSVs were retired). Prior session.</td></tr>
+<tr><th scope="row">Rates cross-check</th><td>FRED: DGS10, DGS2, T10Y2Y, DFF, VIXCLS (daily, lagged).</td></tr>
+<tr><th scope="row">FOMC</th><td>federalreserve.gov meeting calendar and calendar JSON (meetings, minutes, press conferences).</td></tr>
+<tr><th scope="row">Fed speakers</th><td>federalreserve.gov calendar JSON (speeches, testimony), best effort.</td></tr>
+<tr><th scope="row">Economic releases</th><td>BEA release schedule (GDP, PCE); BLS/Census dates (CPI, PPI, NFP, retail sales) via the FRED release calendar because bls.gov blocks automated clients.</td></tr>
+<tr><th scope="row">Treasury auctions</th><td>TreasuryDirect announced auctions (notes/bonds).</td></tr>
+<tr><th scope="row">Earnings</th><td>yfinance earnings dates for the mega-caps and a list of S&amp;P 500 names above $200B market cap (refreshed monthly). Dates only; pre/post-market timing is not in the source.</td></tr>
+<tr><th scope="row">Headlines</th><td>RSS titles only: CNBC Markets, MarketWatch Top Stories, Federal Reserve press releases.</td></tr>
+</tbody></table>
+
+<h2>Approximations</h2>
+<ul>
+<li><strong>GEX / gamma flip</strong>: approximate, OI-based. Per strike <code>OI × gamma × 100 × spot² × 0.01</code>, calls positive, puts negative, gamma from Black-Scholes on the chain's IV. Assumes a customer-long-puts/short-calls book; it is not dealer positioning. The flip is where the summed profile crosses zero within ±5% of spot.</li>
+<li><strong>Expected move</strong>: ATM straddle (mid, or last if no quote). Intraday the 0DTE straddle prices only the remaining move, so gap and range ratios use the day-start value from the premarket brief.</li>
+<li><strong>VWAP</strong>: SPX has no volume; SPX typical price is weighted by SPY 5-minute volume.</li>
+<li><strong>Pre-market spot</strong>: ES last minus the ES–SPX basis at the prior cash close.</li>
+</ul>
+
+<h2>Regime rules</h2>
+<p>Each label scores the weighted share of its evaluable conditions that are met. Conditions with null inputs are skipped. A label must meet its required conditions. NO_TRADE is assigned by data-quality and market-closed gates, when no label reaches the minimum score, or when the top two are within the conflict margin at low confidence. Thresholds: <code>regime_rules.yaml</code>.</p>
+{% for r in rules %}
+<h3><span aria-hidden="true">{{ r.icon }}</span> {{ r.label }}</h3>
+<table><thead><tr><th>Condition</th><th>Weight</th><th>Rule</th></tr></thead><tbody>
+{% for n, w, rule in r.conditions %}<tr><td class="mono">{{ n }}{% if n in r.required %} (required){% endif %}</td><td>{{ w }}</td><td>{{ rule }}</td></tr>{% endfor %}
+</tbody></table>
+{% endfor %}
+<h3>Premium relevance of calendar events</h3>
+<p>High: {{ relevance.high|join(', ') }}. Medium: {{ relevance.medium|join(', ') }}. Everything else: low.</p>
+
+<h2 id="schema">Indicator definitions (brief.json schema)</h2>
+<div class="schema">{{ schema_html|safe }}</div>
+{% endblock %}

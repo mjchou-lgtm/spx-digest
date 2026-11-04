@@ -94,8 +94,16 @@ def fetch_headlines() -> FetchResult:
                     items.append({"title": title, "source": name, "published_utc": _entry_time(e)})
         if not items:
             raise RuntimeError("all RSS feeds failed")
-        items.sort(key=lambda x: x["published_utc"] or "", reverse=True)
-        return {"items": items, "failed_feeds": failed}
+        # Round-robin across feeds (newest first within each) so one busy feed cannot fill the top 10.
+        by_feed: dict[str, list] = {}
+        for it in sorted(items, key=lambda x: x["published_utc"] or "", reverse=True):
+            by_feed.setdefault(it["source"], []).append(it)
+        mixed = []
+        while any(by_feed.values()):
+            for q in by_feed.values():
+                if q:
+                    mixed.append(q.pop(0))
+        return {"items": mixed, "failed_feeds": failed}
 
     return fetch_with_retry("rss", run, retries=1)
 

@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% from "_badge.html" import badge %}
+{% block main %}
+<h1 class="day">{{ day }}{% if early_close %} <span class="tag">⏱ early close</span>{% endif %}</h1>
+{% if not is_session %}<p class="muted">No NYSE session on this date.</p>{% endif %}
+{% for s in slots %}
+<section class="slot">
+  <div class="slot-head"><span class="ptype">{{ s.post_type }}</span>
+  {% if s.post %}<span class="muted">{{ s.post.time_pt }} PT{% if s.post.versions|length > 1 %} · v{{ s.post.version }}{% endif %}</span>{% endif %}</div>
+  {% if s.post %}
+    <a class="slot-link" href="{{ s.post.url }}">{{ badge(s.post.label, s.post.fm.confidence) }}</a>
+    {% if s.post.fm.narrative != 'claude' %}<p class="muted">Narrative: {{ s.post.fm.narrative }}</p>{% endif %}
+    <p><a href="{{ s.post.url }}">Read the {{ s.post.post_type }} post →</a></p>
+  {% elif s.scheduled %}
+    <p class="muted">◷ Scheduled for {{ s.scheduled }} PT</p>
+  {% else %}
+    <p class="muted">—</p>
+  {% endif %}
+</section>
+{% endfor %}
+{% endblock %}

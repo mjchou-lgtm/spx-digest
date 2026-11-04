@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% from "_badge.html" import badge %}
+{% block title %}Archive · {{ site_title }}{% endblock %}
+{% block main %}
+<h1>Archive</h1>
+{% if not months %}<p class="muted">No posts yet.</p>{% endif %}
+{% for month, days in months %}
+<h2>{{ month }}</h2>
+<ul class="archive">
+{% for d in days %}
+<li><span class="adate">{{ d.date }}</span>
+  {% for p in d.posts %}<a href="{{ rel }}{{ p.url }}" class="apost">{{ p.post_type }}: {{ badge(p.label, None) }}</a>{% endfor %}</li>
+{% endfor %}
+</ul>
+{% endfor %}
+{% endblock %}

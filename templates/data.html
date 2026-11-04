@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Data · {{ site_title }}{% endblock %}
+{% block main %}
+<h1>Data</h1>
+<p class="muted">Every raw fetch (<code>*.raw.json</code>), computed brief (<code>*.brief.json</code>, schema in <a href="{{ rel }}about/index.html#schema">About</a>) and the exact Claude prompt/response (<code>*.llm.json</code>). Files are append-only: re-runs add <code>.2</code>, <code>.3</code> versions. Latest per post type: <a href="{{ rel }}api/latest.json">api/latest.json</a>.</p>
+{% if not days %}<p class="muted">No data yet.</p>{% endif %}
+{% for d in days %}
+<h2>{{ d.date }}{% if d.date == today %} <span class="tag">today</span>{% endif %}</h2>
+<ul>{% for f in d.files %}<li><a class="mono" href="{{ d.date }}/{{ f }}">{{ f }}</a></li>{% endfor %}</ul>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+<title>{{ site_title }}</title>
+<link>{{ base }}</link>
+<description>SPX 0DTE session primer and intraday updates</description>
+{% for i in items %}<item>
+<title>{{ i.title }}</title>
+<link>{{ i.link }}</link>
+<guid isPermaLink="false">{{ i.link }}</guid>
+{% if i.pub %}<pubDate>{{ i.pub }}</pubDate>{% endif %}
+<description>{{ i.summary }}</description>
+</item>
+{% endfor %}</channel>
+</rss>

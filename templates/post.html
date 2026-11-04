@@ -1,0 +1,31 @@
+{% extends "base.html" %}{% from "_badge.html" import badge %}
+{% block title %}{{ p.date }} {{ p.post_type }} · {{ site_title }}{% endblock %}
+{% block main %}
+<p class="crumbs"><a href="{{ rel }}index.html">Today</a> / <a href="{{ rel }}archive/index.html">{{ p.date }}</a> / {{ p.post_type }}</p>
+<h1>{{ p.date }} · {{ p.post_type }}</h1>
+<p>{{ badge(p.label, p.fm.confidence) }}</p>
+<p class="muted">Generated {{ p.time_pt }} PT · data as of {{ p.fm.data_as_of or 'n/a' }} · schema {{ p.fm.schema_version }}{% if p.fm.model %} · {{ p.fm.model }}{% endif %}</p>
+{% if versions|length > 1 %}<p class="muted">Version {{ p.version }} of {{ versions|length }}{% if not is_latest %} — <a href="{{ rel }}{{ latest_url }}">see latest</a>{% endif %}</p>{% endif %}
+<article class="narrative">{{ body|safe }}</article>
+
+<details class="brief">
+<summary>Indicator brief</summary>
+{% for t in tables %}
+<h3>{{ t.title }}</h3>
+<table><tbody>
+{% for k, v in t.rows %}<tr><th scope="row">{{ k }}</th><td>{{ v }}</td></tr>{% endfor %}
+</tbody></table>
+{% endfor %}
+</details>
+
+<section class="dq">
+<h2>Data quality</h2>
+{% set nulls = dq.get('null_fields', []) %}{% set fbs = dq.get('fallbacks', []) %}{% set errs = dq.get('source_errors', []) %}{% set notes = dq.get('notes', []) %}
+{% if not (nulls or fbs or errs or notes) %}<p>✓ All fields populated; no fallbacks used.</p>{% endif %}
+{% if fbs %}<h3>⚠ Fallbacks used</h3><ul>{% for f in fbs %}<li>{{ f }}</li>{% endfor %}</ul>{% endif %}
+{% if errs %}<h3>✕ Source errors</h3><ul>{% for f in errs %}<li>{{ f }}</li>{% endfor %}</ul>{% endif %}
+{% if nulls %}<h3>∅ Null fields</h3><p class="mono">{{ nulls|join(', ') }}</p>{% endif %}
+{% if notes %}<h3>Notes</h3><ul>{% for f in notes %}<li>{{ f }}</li>{% endfor %}</ul>{% endif %}
+<p class="muted">Files: {% for k, f in files.items() %}<a href="{{ rel }}{{ f }}">{{ k }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>
+</section>
+{% endblock %}
