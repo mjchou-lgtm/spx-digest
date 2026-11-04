@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [digest/**, templates/**, static/**, docs/**, regime_rules.yaml, posts/**]
+    paths: [digest/**, templates/**, static/**, docs/**, regime_rules.yaml, posts/**, .github/workflows/deploy.yml, .github/workflows/_post.yml]
 
 concurrency:
   group: pages
@@ -18,17 +18,17 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: {ref: main}
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with: {python-version: "3.14", cache: pip, cache-dependency-path: requirements.lock}
       - run: pip install -r requirements.lock
       - id: pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
       - run: python -m digest build
         env:
           DIGEST_SITE_URL: ${{ steps.pages.outputs.base_url }}
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with: {path: site}
 
   deploy:
@@ -42,4 +42,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

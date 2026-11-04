@@ -58,7 +58,7 @@ Content rules:
 - The gamma figures are an approximate, OI-based estimate, not dealer positioning; if you mention them, call them approximate.
 - Times: catalyst times in the brief are ET; the reader is in Pacific time. Give both when you mention a time.
 - Style: plain, direct prose. No hype, no exclamation marks, no emoji. No headers other than the template's. Bullets are short.
-- Length: at most about 450 words in total.
+- Length: at most about 350 words in total (the whole post must fit in roughly 600 tokens).
 
 Output exactly this Markdown template, filling in each section, and nothing before or after it:
 
