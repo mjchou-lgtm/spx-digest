@@ -1,6 +1,6 @@
 # brief.json schema
 
-Current `schema_version`: **2.0**. Generated from `digest/brief.py` by `python -m digest.schema_doc` — do not edit by hand.
+Current `schema_version`: **2.1**. Generated from `digest/brief.py` by `python -m digest.schema_doc` — do not edit by hand.
 
 Conventions: snake_case; units in field names (`_pts` SPX index points, `_pct` percent, `_bp` basis points, `_usd_bn` billions of dollars); sections are flat (one level deep); lists hold primitives or flat records (`event`, `headline`, `level`, `source`). Any value may be `null` when its source failed or it does not apply to the post type (intraday fields in a premarket post). Consumers should treat unknown fields as additive within a major version.
 
@@ -176,6 +176,14 @@ Published at `data/YYYY-MM-DD/<post_type>.brief.json` and, for the latest post o
 | `days_to_next_fomc` | int | Calendar days to next FOMC decision. |
 | `earnings_prev_session` | list[str] | Mega-cap earnings on the prior session date. |
 | `data_day` | bool | A high-relevance release or Fed event is on today's calendar. |
+| `weekday` | str | Day of the week of the session. |
+| `expiry_kind` | enum: daily / weekly / monthly / quarterly | Largest options expiry today: daily (SPX's usual same-day options only), weekly (last session of the week), monthly (third Friday) or quarterly (third Friday of Mar/Jun/Sep/Dec). |
+| `monthly_opex_date` | str | Next monthly options expiration on or after today (third Friday, or the session before it on a holiday). |
+| `days_to_monthly_opex` | int | Calendar days to that expiration. |
+| `opex_week` | bool | Today is in the week of the monthly options expiration. |
+| `vix_expiry_today` | bool | VIX futures and options settle this morning. |
+| `month_end` | bool | Last trading day of the month. |
+| `quarter_end` | bool | Last trading day of the quarter. |
 | `high_event_later_today` | bool | A high-relevance event is still ahead in today's session. |
 | `next_high_event_time_et` | str | Time of that event (ET). |
 | `headlines` | list[headline] | Top RSS titles (records below), newest first. |

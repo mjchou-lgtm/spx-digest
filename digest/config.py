@@ -18,7 +18,7 @@ PT = ZoneInfo("America/Los_Angeles")
 ET = ZoneInfo("America/New_York")
 UTC = ZoneInfo("UTC")
 
-SCHEMA_VERSION = "2.0"
+SCHEMA_VERSION = "2.1"
 
 CALENDARS_DIR = ROOT / "calendars"
 TEMPLATES_DIR = ROOT / "templates"

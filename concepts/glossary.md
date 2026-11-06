@@ -73,3 +73,21 @@ Each entry says what the thing is and why a card mentions it.
 **Time stop ("out by...").** A time after which the trade is closed whatever it is doing.
 
 **Flat.** Holding no position.
+
+## The calendar
+
+**Options expiration.** The day an option stops existing. SPX has options expiring every trading day, so the question each day is whether anything bigger expires too.
+
+**Weekly expiry.** The last trading day of the week, normally Friday. That week's options on stocks and ETFs expire at the close, on top of SPX's same-day options.
+
+**Monthly options expiration ("opex").** The third Friday of the month, the biggest regular expiry. The standard monthly SPX options settle on that morning's opening prices, so the open can be jumpy.
+
+**Quarterly expiration ("triple witching").** The monthly expiration in March, June, September and December, when index futures expire too. Volume is usually far above normal at the open and in the final minutes.
+
+**Pinning.** Price hovering near a heavily traded strike, usually a round number, as expiry approaches. It is a tendency on big expiry days, not a rule, and the cards do not measure it.
+
+**VIX settlement.** One Wednesday morning a month, VIX futures and options settle using SPX option prices at the open, which can make the first minutes noisier.
+
+**Month-end and quarter-end.** The last trading day of the period. End-of-month SPX options expire and large funds rebalance their holdings, which can push price into the close for reasons unrelated to the day's news.
+
+**Scheduled release.** Economic data or a Fed decision published at a known time (jobs report, CPI, the Fed statement). Price and option prices can jump within seconds of it, so a read made before it can stop being true when it lands.

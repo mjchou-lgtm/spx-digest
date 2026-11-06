@@ -1,6 +1,6 @@
 # SPX 0DTE Daily Digest
 
-A static daily digest for SPX 0DTE day trading, published to GitHub Pages. Each post is a quick-reference card in plain English: a highlighted Verdict section (the verdict, what it means, and the few levels and conditions to watch), then Technical and News / macro sections with source links, and the list of sources fetched. The cards double as a learning tool: terms are replaced or explained where they appear (wording lives in `digest/plain.py`), and every card links to the glossary in `concepts/glossary.md`. Three cards per trading day:
+A static daily digest for SPX 0DTE day trading, published to GitHub Pages. Each post is a quick-reference card in plain English: a highlighted Verdict section (the verdict, what it means, and the few levels and conditions to watch), then Technical and News / macro sections with source links, and the list of sources fetched. The cards double as a learning tool: terms are replaced or explained where they appear (wording lives in `digest/plain.py`), and every card links to the glossary in `concepts/glossary.md`. Each card also says what is different about the day's calendar (day of the week, weekly, monthly or quarterly options expiry, VIX settlement, month or quarter end, early close, and high-impact releases still ahead), computed in `digest/indicators/daycal.py` from the NYSE session calendar; positioning itself (open interest, dealer gamma) is not measured. Three cards per trading day:
 
 | Post | ET / PT | Card |
 |---|---|---|

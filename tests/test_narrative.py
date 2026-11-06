@@ -16,7 +16,7 @@ def test_system_prompt_rules(post_type):
                  "do not substitute your own label", "do not invent triggers, strikes, entries, exits, sizes, stops or targets",
                  "do not say premium is expensive", "likely to be exceeded given the regime", "debit spread", "sit out",
                  "no disclaimers", "not financial advice", "both zones", "no hype", "no headers", "at most 80 words", "do not recite them",
-                 "learning tool", "plain english", "do not assume they know the jargon", "say why a thing matters",
+                 "learning tool", "plain english", "weigh the calendar", "calendar.expiry_kind", "tendencies, not forecasts", "do not assume they know the jargon", "say why a thing matters",
                  "verdict: <one short line in plain english"]:
         assert rule in p, rule
 
@@ -118,7 +118,7 @@ def test_verdict_summary_lists_levels_indicators_and_triggers(brief_pre, brief_m
     assert pre[0].startswith("The open: futures point to ") and any(w.startswith("Ceiling: ") for w in pre) and any(w.startswith("Floor: ") for w in pre)
     assert any(w.startswith("Expected move: options are pricing about ±") for w in pre)
     assert any(w.startswith("Option prices: the 1-day volatility gauge (VIX1D) is ") for w in pre)
-    assert any(w.startswith("Scheduled news that can move the market: 08:30 ET / 05:30 PT Monthly jobs report") for w in pre)
+    assert any("Scheduled news that can move the market: 08:30 ET / 05:30 PT Monthly jobs report" in w for w in pre)
     assert any(w.startswith("What decides the day type: ") for w in pre)
     mid = render.watch(brief_mid)
     assert mid[0] == "Early setup: not live, option prices are high on a range-bound day (the sit-out combination)."
@@ -187,6 +187,39 @@ def test_news_macro_section(cards, brief_pre, brief_mid):
     assert render._event_name(ev) == "Preliminary University of Michigan Consumer Sentiment"
     assert "already out" in section(render.card(brief_mid), "## News / macro") and "already out" not in pre
     assert pre.count("- Headline: ") <= 3 and "termination of enforcement action" not in pre  # routine Fed notices are dropped
+
+
+def test_calendar_notes_cover_day_of_week_expiries_and_news_ahead(brief_pre, brief_mid, brief_td_mid):
+    from digest.brief import Event
+    # 2026-11-06 is a Friday: weekly expiry, explained in both places.
+    assert brief_mid.calendar.weekday == "Friday" and brief_mid.calendar.expiry_kind == "weekly"
+    w = render.calendar_watch(brief_mid)
+    assert w.startswith("Today's calendar: It's Friday, weekly options expiry: ") and "round-number strikes" in w
+    assert w in render.watch(brief_mid)
+    news = section(render.card(brief_mid), "## News / macro")
+    assert "- Today is Friday, weekly options expiry. " in news and "(traders call this pinning)" in news
+    # Before the open the calendar note shares one bullet with the day's releases.
+    pre = [x for x in render.watch(brief_pre) if "Today's calendar: " in x]
+    assert len(pre) == 1 and "Scheduled news that can move the market: " in pre[0]
+    # 2026-11-05 is an ordinary Thursday: nothing in the verdict, one plain line under News / macro.
+    assert render.calendar_watch(brief_td_mid) is None
+    assert "- Today is Thursday. Only SPX's usual same-day options expire" in section(render.card(brief_td_mid), "## News / macro")
+    # A high-impact release still ahead is flagged after the open, with both time zones.
+    x = brief_td_mid.model_copy(deep=True)
+    x.calendar.events_today = [Event(date="2026-11-05", time_et="14:00", name="FOMC statement", category="FOMC_DECISION", premium_relevance="high")]
+    x.calendar.high_event_later_today, x.calendar.next_high_event_time_et = True, "14:00"
+    assert any("Still to come: 14:00 ET / 11:00 PT " in l and "change this read" in l for l in render.watch(x))
+    # The biggest days stay readable: every expiry kind plus month end and news ahead fits the bullet limit.
+    for kind in ("weekly", "monthly", "quarterly"):
+        x.calendar.weekday, x.calendar.expiry_kind, x.calendar.month_end, x.calendar.quarter_end = "Friday", kind, True, kind == "quarterly"
+        x.calendar.vix_expiry_today = True
+        line = render.calendar_watch(x)
+        assert len(line) < 420 and line.count("Still to come") == 1, (kind, len(line))
+        lines = render._calendar_lines(x)
+        assert any(l.startswith("- Last trading day of the " + ("quarter" if kind == "quarterly" else "month")) for l in lines)
+        assert any("VIX futures and options settle this morning" in l for l in lines)
+    for l in render.watch(x) + render.watch(brief_pre):
+        assert len(l) < 420
 
 
 def test_only_big_moves_in_other_markets_are_shown(brief_mid):

@@ -5,7 +5,7 @@ card comes from the brief. If the Claude call fails the verdict is the determini
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from urllib.parse import quote
 
 import yaml
@@ -276,8 +276,9 @@ def watch(b: Brief) -> list[str]:
         out += _watch_levels(b)
         out.append(f"Option prices: {_vix1d(b)}.")
         key = [e for e in b.calendar.events_today if e.premium_relevance in ("high", "medium") and e.time_et][:3]
-        if key:
-            out.append("Scheduled news that can move the market: " + "; ".join(f"{both(e.time_et)} {_event_name(e)}" for e in key) + ".")
+        news = "Scheduled news that can move the market: " + "; ".join(f"{both(e.time_et)} {_event_name(e)}" for e in key) + "." if key else None
+        if news or calendar_watch(b):  # one bullet: what the calendar says about today
+            out.append(" ".join(x for x in (calendar_watch(b), news) if x))
         out.append("What decides the day type: " + "; ".join(p.flip) + ".")
     elif b.meta.post_type == "midsession":
         if p.early_trigger:
@@ -290,6 +291,7 @@ def watch(b: Brief) -> list[str]:
             out.append(f"Late setup: {p.late_status}.")
         out += _watch_levels(b)
         out.append(f"{_cap(_crush_text(b))}. Also, {_vix1d(b)}.")
+        out += [c for c in [calendar_watch(b)] if c]
         out.append("What would change this read: " + "; ".join(p.flip) + ".")
     else:
         out.append(f"Late setup ({p.late_window_et} ET): {p.late_status}." + (f" Trigger: {p.late_trigger}." if p.late_trigger else ""))
@@ -298,6 +300,7 @@ def watch(b: Brief) -> list[str]:
                    f"and it melts faster every minute from here. Premium cap: {p.premium_cap}. Be flat by {p.flat_by_et} ET.")
         if r.holding_note:
             out.append(f"The {plain.REGIME_PLAIN[r.label].lower()} read is {'still holding' if r.holding else 'no longer holding'}: {r.holding_note}.")
+        out += [c for c in [calendar_watch(b)] if c]
     return [with_pt(x) for x in out]
 
 
@@ -403,6 +406,80 @@ def _playbook(b: Brief) -> str:
     return with_pt("\n".join(out))
 
 
+# --- The day's calendar (day of week, expiries, month end, news still ahead) --------------------
+
+def _day_head(b: Brief) -> str | None:
+    """'Friday, weekly options expiry' / 'Tuesday'."""
+    cal = b.calendar
+    if not cal.weekday:
+        return None
+    return f"{cal.weekday}, {plain.EXPIRY_NAME[cal.expiry_kind]}" if cal.expiry_kind in plain.EXPIRY_NAME else cal.weekday
+
+
+def _event_ahead(b: Brief):
+    cal = b.calendar
+    if not (cal.high_event_later_today and cal.next_high_event_time_et):
+        return None
+    return next((e for e in cal.events_today if e.time_et == cal.next_high_event_time_et and e.premium_relevance == "high"), None)
+
+
+def _period(b: Brief) -> str:
+    return "quarter" if b.calendar.quarter_end else "month"
+
+
+def calendar_watch(b: Brief) -> str | None:
+    """One Verdict bullet: what is unusual about today's calendar. None on an ordinary day.
+
+    Short by design (the fuller explanation is under News / macro): the two most important
+    items, or one before the open, where the same bullet also lists the day's releases.
+    """
+    cal, pt = b.calendar, b.meta.post_type
+    bits = []
+    if cal.expiry_kind in plain.EXPIRY_SHORT and cal.weekday:
+        bits.append(f"it's {cal.weekday}, {plain.EXPIRY_SHORT[cal.expiry_kind]}")
+    e = _event_ahead(b) if pt != "premarket" else None  # the pre-market bullet already lists the day's releases
+    if e is not None:
+        bits.append(plain.EVENT_AHEAD.format(time=f"{e.time_et} ET", name=_event_name(e)))
+    if cal.month_end:
+        bits.append(plain.PERIOD_END_SHORT.format(period=_period(b)))
+    if b.meta.is_early_close and b.meta.session_close_pt:
+        bits.append(f"the market closes early, at {_et_of(b.meta.session_close_pt)} ET, so option time value runs down on a shorter clock")
+    if cal.vix_expiry_today and pt == "premarket":
+        bits.append(plain.VIX_EXPIRY_SHORT)
+    bits = bits[: 1 if pt == "premarket" else 2]
+    if not bits:
+        return None
+    return "Today's calendar: " + ". ".join(_cap(x) for x in bits) + "."
+
+
+def _et_of(hhmm_pt: str) -> str:
+    h, m = map(int, hhmm_pt.split(":"))
+    return f"{(h + 3) % 24:02d}:{m:02d}"
+
+
+def _calendar_lines(b: Brief) -> list[str]:
+    """News / macro bullets: the day of the week and expiries, with why each matters."""
+    cal = b.calendar
+    if not cal.weekday:
+        return []
+    if cal.expiry_kind in plain.EXPIRY_WHY:
+        why = plain.EXPIRY_WHY[cal.expiry_kind]
+    else:
+        why = plain.MONDAY_WHY if cal.weekday == "Monday" else plain.NO_EXPIRY_WHY
+    out = [f"- Today is {_day_head(b)}. {why}"]
+    if cal.opex_week and cal.days_to_monthly_opex and cal.monthly_opex_date:
+        d = date.fromisoformat(cal.monthly_opex_date)
+        n = cal.days_to_monthly_opex
+        out.append("- " + plain.OPEX_WEEK_WHY.format(when=f"this {d:%A}", date=f"{d:%b} {d.day}", n=f"{n} day{'s' if n != 1 else ''}"))
+    if cal.vix_expiry_today:
+        out.append(f"- {plain.VIX_EXPIRY_WHY}")
+    if cal.month_end:
+        out.append("- " + plain.PERIOD_END_WHY.format(period=_period(b)))
+    if b.meta.is_early_close and b.meta.session_close_pt:
+        out.append(f"- Early close: the market shuts at {both(_et_of(b.meta.session_close_pt))} today, so option time value runs down on a shorter clock.")
+    return out
+
+
 # --- News / macro ------------------------------------------------------------------------------
 
 BIG_MOVE = {"us10y_bp": 5.0, "dxy_pct": 0.5, "oil_pct": 2.0, "gold_pct": 1.5}
@@ -445,9 +522,9 @@ def _headlines(b: Brief) -> list[str]:
 def _news(b: Brief) -> str:
     cal = b.calendar
     now_et = datetime.strptime(b.meta.as_of_pt, "%Y-%m-%d %H:%M").replace(tzinfo=config.PT).astimezone(config.ET).strftime("%H:%M")
-    out = []
+    out = _calendar_lines(b)
     if cal.events_today:
-        out += ["Scheduled releases can move the index and option prices within seconds. High-impact ones matter most.", ""]
+        out += ["- Scheduled releases can move the index and option prices within seconds. High-impact ones matter most:"]
     for e in cal.events_today:
         done = ", already out" if e.time_et and e.time_et <= now_et and b.meta.post_type != "premarket" else ""
         src = f" ([source]({e.url}))" if e.url else ""

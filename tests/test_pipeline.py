@@ -54,7 +54,7 @@ def test_committed_briefs_validate():
 
 
 def test_schema_is_v2_without_dealer_gamma(brief_mid):
-    assert config.SCHEMA_VERSION == "2.0"
+    assert config.SCHEMA_VERSION.split(".")[0] == "2"
     assert "gamma" not in brief_mid.model_dump_json().replace("Dealer gamma", "") and "gex_method" not in brief_mid.model_dump_json()
     assert brief_mid.positioning.gex_vendor_url is None
 

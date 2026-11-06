@@ -328,3 +328,29 @@ def test_crush_without_a_print_is_a_labelled_estimate(brief_mid):
     assert v.straddle_0935_pts is None and v.iv_crush_basis.startswith("estimate")
     assert any("estimate" in f for f in brief_mid.data_quality.fallbacks)
     assert any("09:35" in m for m in brief_mid.data_quality.manual_inputs)
+
+
+def test_day_context_expiries_and_period_ends():
+    from datetime import date
+
+    from digest import schedule
+    from digest.indicators.daycal import day_context, monthly_opex, third_friday, vix_expiry
+
+    t = schedule.is_trading_day
+    ctx = lambda y, m, d: day_context(date(y, m, d), t)
+    assert third_friday(2026, 11) == date(2026, 11, 20)
+    fri = ctx(2026, 11, 6)
+    assert fri["weekday"] == "Friday" and fri["expiry_kind"] == "weekly" and fri["monthly_opex_date"] == "2026-11-20"
+    assert fri["days_to_monthly_opex"] == 14 and not fri["opex_week"] and not fri["month_end"]
+    assert ctx(2026, 11, 5)["expiry_kind"] == "daily"
+    assert ctx(2026, 11, 20)["expiry_kind"] == "monthly" and ctx(2026, 11, 20)["days_to_monthly_opex"] == 0
+    assert ctx(2026, 12, 18)["expiry_kind"] == "quarterly"
+    wed = ctx(2026, 11, 18)  # VIX settlement: 30 days before the third Friday of December
+    assert wed["vix_expiry_today"] and wed["opex_week"] and wed["days_to_monthly_opex"] == 2
+    assert vix_expiry(2025, 1, t) == date(2025, 1, 22)
+    # Good Friday 2025 fell on the third Friday: the monthly expiration moved to Thursday.
+    assert monthly_opex(2025, 4, t) == date(2025, 4, 17) and ctx(2025, 4, 17)["expiry_kind"] == "monthly"
+    # Month and quarter end are the last sessions, and after this month's expiration the next one is used.
+    assert ctx(2026, 11, 30)["month_end"] and not ctx(2026, 11, 30)["quarter_end"] and ctx(2026, 11, 30)["monthly_opex_date"] == "2026-12-18"
+    ye = ctx(2026, 12, 31)
+    assert ye["month_end"] and ye["quarter_end"] and ye["expiry_kind"] == "weekly"  # Friday Jan 1 is a holiday

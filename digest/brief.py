@@ -197,6 +197,14 @@ class Calendar(_Flat):
     days_to_next_fomc: Optional[int] = None
     earnings_prev_session: list[str] = []
     data_day: bool = False
+    weekday: Optional[str] = None
+    expiry_kind: Optional[Literal["daily", "weekly", "monthly", "quarterly"]] = None
+    monthly_opex_date: Optional[str] = None
+    days_to_monthly_opex: Optional[int] = None
+    opex_week: bool = False
+    vix_expiry_today: bool = False
+    month_end: bool = False
+    quarter_end: bool = False
     high_event_later_today: bool = False
     next_high_event_time_et: Optional[str] = None
     headlines: list[Headline] = []

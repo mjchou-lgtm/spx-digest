@@ -11,6 +11,7 @@ from digest.brief import (INTRADAY_ONLY_LEVELS, Breadth, Brief, Calendar, CrossA
 from digest.fetch import market, web
 from digest.fetch.base import now_utc_iso
 from digest.indicators import Market, r2
+from digest.indicators.daycal import day_context
 from digest.indicators.events import events_for, high_event_later, next_fomc
 from digest.indicators import premium
 from digest.indicators.intraday import compute_intraday, compute_structure
@@ -253,6 +254,7 @@ def build_brief(raw: dict, rules: dict | None = None, version: int = 1, generate
             next_fomc_date=nf_date, days_to_next_fomc=nf_days, earnings_prev_session=earn_prev,
             data_day=any(e["premium_relevance"] == "high" and e["category"] not in ("MEGACAP_EARNINGS",) for e in ev_today),
             high_event_later_today=hel, next_high_event_time_et=hel_t, headlines=heads,
+            **({} if closed else day_context(target, schedule.is_trading_day)),
         ),
         intraday=Intraday(**_round_section(_pick(intr, Intraday))),
         data_quality=dq,
