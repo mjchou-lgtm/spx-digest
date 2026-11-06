@@ -39,28 +39,27 @@ def _flip(b: Brief, c: dict) -> list[str]:
     r, i, lv = b.regime, b.intraday, b.levels
     t = both(c["classify_time_et"])
     if r.label == "undetermined" and b.meta.post_type == "premarket":
-        va = f"prior value ({lv.prior_val}–{lv.prior_vah})" if lv.prior_vah is not None else "prior value"
+        va = f"prior value {lv.prior_val}–{lv.prior_vah}" if lv.prior_vah is not None else "prior value"
         if r.lean in ("gap_up", "gap_down"):
             side = "above" if r.lean == "gap_up" else "below"
-            return [f"gap_and_go if spot is {side} the opening range at {t}",
-                    f"gap_and_fill if spot is back inside {va} at {t}"]
+            return [f"gap_and_go if spot is {side} the opening range at {t}", f"gap_and_fill if spot is back inside {va} by then"]
         if r.lean in ("open_above_value", "open_below_value"):
             d = "up" if r.lean == "open_above_value" else "down"
-            return [f"trend_{d} if the open stays outside {va} and VWAP is crossed fewer than 2 times by {both(c['vwap_cutoff_et'])}",
-                    f"an open back inside {va} moves the day toward balance"]
+            return [f"trend_{d} if the open is outside {va} and VWAP is crossed fewer than 2 times by {both(c['vwap_cutoff_et'])}",
+                    f"balance candidate if the open is back inside {va}"]
         if r.lean == "open_inside_value":
-            return [f"balance if VWAP is crossed both ways by {both(c['vwap_cutoff_et'])} with a symmetric developing profile",
-                    f"an open outside {va} with VWAP respected moves the day toward trend"]
+            return [f"balance if VWAP is crossed both ways by {both(c['vwap_cutoff_et'])} and the profile is symmetric",
+                    f"trend candidate if the open is outside {va} and VWAP holds"]
         return [f"classification at {t}"]
     if r.label in ("trend_up", "trend_down") and i.vwap is not None:
-        return [f"5-min closes back {'below' if r.label == 'trend_up' else 'above'} VWAP {i.vwap}"]
+        return [f"closes back {'below' if r.label == 'trend_up' else 'above'} VWAP {i.vwap}"]
     if r.label == "gap_and_go":
-        return [f"a 5-min close back inside the opening range ({i.or_low}–{i.or_high})"]
+        return [f"a close back inside the opening range {i.or_low}–{i.or_high}"]
     if r.label == "gap_and_fill":
         edge = i.or_high if (lv.gap_pct or 0) > 0 else i.or_low
         return [f"a reclaim of the opening-range {'high' if (lv.gap_pct or 0) > 0 else 'low'} {edge}"]
     if r.label == "balance":
-        return [f"acceptance outside developing value ({i.dev_val}–{i.dev_vah}): {c['acceptance_closes']} consecutive 5-min closes beyond either edge"]
+        return [f"{c['acceptance_closes']} straight 5-min closes outside developing value {i.dev_val}–{i.dev_vah}"]
     return [x for x in r.rules_failed[:3]] or [f"classification at {t}"]
 
 
@@ -86,15 +85,15 @@ def _evaluate(b: Brief, rules: dict, pb: dict) -> Playbook:
         instrument=(early["high_iv_instrument"] if vol.iv_high else "single leg"),
     )
     if b.meta.market_closed_mode:
-        out.early_status = out.late_status = "not live: market closed"
+        out.early_status = out.late_status = "not live, market closed"
         return out
     if b.meta.post_type == "premarket":
         out.live = "pending"
-        out.early_status = f"pending: decided at the {both(c['classify_time_et'])} classification"
-        out.early_trigger = (f"if the day classifies as {', '.join(early['regimes'])}"
-                             + (" and the IV crush is done" if early.get("requires_iv_crush") else "")
-                             + f": {c['acceptance_closes']} consecutive 5-min closes beyond the opening range in the regime direction")
-        out.late_status = "not live: early close" if b.meta.is_early_close else f"window opens {both(l0)}; trigger is set in the afternoon post"
+        out.early_status = f"pending the {both(c['classify_time_et'])} classification"
+        out.early_trigger = (f"on {', '.join(early['regimes'])}"
+                             + (" with the IV crush done (or high IV)" if early.get("requires_iv_crush") else "")
+                             + f": {c['acceptance_closes']} straight 5-min closes beyond the opening range, in the regime direction")
+        out.late_status = "not live, early close" if b.meta.is_early_close else f"opens {both(l0)}; trigger set in the afternoon post"
         out.reasons = [f"no trade until the {both(c['classify_time_et'])} classification"]
         return out
 
@@ -106,35 +105,35 @@ def _evaluate(b: Brief, rules: dict, pb: dict) -> Playbook:
     if now_et >= e1:
         out.early_status = f"window closed ({both(e1)})"
     elif sit_out:
-        out.early_status = "not live: high IV on a balance day"
+        out.early_status = "not live, high IV on a balance day"
     elif r.label not in early["regimes"]:
-        out.early_status = f"not live: regime is {r.label}"
+        out.early_status = f"not live, regime is {r.label}"
     elif r.holding is False:
-        out.early_status = f"not live: {r.label} is not holding ({r.holding_note})"
+        out.early_status = f"not live, {r.label} is not holding ({r.holding_note})"
     elif (early.get("requires_iv_crush") and vol.iv_crush_label != "crush done"
           and not (early.get("high_iv_overrides_crush") and vol.iv_high)):
-        out.early_status = ("not live: IV crush not done" if vol.iv_crush_label else "not live: IV crush unconfirmed (no 09:35 ET straddle print)")
+        out.early_status = ("not live, IV crush not done" if vol.iv_crush_label else "not live, IV crush unconfirmed (no 09:35 ET straddle print)")
     else:
         up = d == "up"
         edge, name = (i.or_high, "high") if up else (i.or_low, "low")
         out.early_status = "live" if now_et >= e0 else f"live from {both(e0)}"
-        out.early_trigger = (f"{c['acceptance_closes']} consecutive 5-min closes {'above' if up else 'below'} the opening-range {name} {edge}"
-                             f" (spot is {i.spot_vs_or} the opening range now)")
-        out.early_invalidation = (f"a 5-min close back inside the opening range ({i.or_low}–{i.or_high})" if r.label == "gap_and_go"
-                                  else f"a 5-min close back {'below' if up else 'above'} VWAP {i.vwap}")
+        out.early_trigger = (f"{c['acceptance_closes']} straight 5-min closes {'above' if up else 'below'} the opening-range {name} {edge}"
+                             f" (spot is {i.spot_vs_or} it now)")
+        out.early_invalidation = (f"a close back inside the opening range {i.or_low}–{i.or_high}" if r.label == "gap_and_go"
+                                  else f"a close back {'below' if up else 'above'} VWAP {i.vwap}")
     early_live = (out.early_status or "").startswith("live")
 
     # Late playbook.
     if b.meta.is_early_close:
-        out.late_status = "not live: early close"
+        out.late_status = "not live, early close"
     elif now_et >= l1:
         out.late_status = f"window closed ({both(l1)})"
     elif sit_out:
-        out.late_status = "not live: high IV on a balance day"
+        out.late_status = "not live, high IV on a balance day"
     elif lv.spot is None or i.dev_vah is None:
-        out.late_status = "not live: developing value area unavailable"
+        out.late_status = "not live, developing value area unavailable"
     else:
-        out.late_status = "live" if now_et >= l0 else f"armed: window opens {both(l0)}"
+        out.late_status = "live" if now_et >= l0 else f"armed, opens {both(l0)}"
         n = c["acceptance_closes"]
         if d:
             side = "above" if d == "up" else "below"
@@ -142,20 +141,20 @@ def _evaluate(b: Brief, rules: dict, pb: dict) -> Playbook:
             lvl = _nearest(b, side)
             use_edge = (edge > lv.spot) if d == "up" else (edge < lv.spot)
             if use_edge and (lvl is None or abs(edge - lv.spot) <= abs(lvl.price - lv.spot)):
-                out.late_trigger = f"acceptance {side} developing {ename} {edge}: {n} consecutive 5-min closes beyond it"
+                out.late_trigger = f"{n} straight 5-min closes {side} developing {ename} {edge}"
             elif lvl is not None:
-                out.late_trigger = (f"break {side} {lvl.name} {lvl.price}" + (f" (confluence with {lvl.confluence_with})" if lvl.confluence else "")
-                                    + f" with volume returning (recent 5-min volume at least {rules['premium']['volume_returning_ratio']}x the 12:00–13:30 ET average)")
+                out.late_trigger = (f"break {side} {lvl.name} {lvl.price}" + (f" (with {lvl.confluence_with})" if lvl.confluence else "")
+                                    + f" on volume at least {rules['premium']['volume_returning_ratio']}x the 12:00–13:30 ET average")
             else:
-                out.late_trigger = f"acceptance {side} developing {ename} {edge}: {n} consecutive 5-min closes beyond it"
+                out.late_trigger = f"{n} straight 5-min closes {side} developing {ename} {edge}"
         else:
             up_d, dn_d = i.dev_vah - lv.spot, lv.spot - i.dev_val
             if i.accepted_outside_dev_va in ("above", "below"):
-                out.late_trigger = (f"acceptance {i.accepted_outside_dev_va} developing value is in place "
-                                    f"({i.dev_val}–{i.dev_vah}); it holds while 5-min closes stay outside")
+                out.late_trigger = (f"already accepted {i.accepted_outside_dev_va} developing value {i.dev_val}–{i.dev_vah}; "
+                                    f"holds while closes stay outside")
             else:
                 side, edge, ename = ("above", i.dev_vah, "VAH") if up_d <= dn_d else ("below", i.dev_val, "VAL")
-                out.late_trigger = f"acceptance {side} developing {ename} {edge}: {n} consecutive 5-min closes beyond it (nearer edge)"
+                out.late_trigger = f"{n} straight 5-min closes {side} developing {ename} {edge} (the nearer edge)"
     late_on = (out.late_status or "").startswith(("live", "armed"))
 
     out.live = "early" if early_live else "late" if late_on else "none"

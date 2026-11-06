@@ -78,6 +78,7 @@ def frontmatter(brief: Brief, narrative: str, files: dict, model: str | None, ve
         "regime": brief.regime.label,
         "playbook": brief.playbook.live,
         "verdict": verdict or default_verdict(brief),
+        "watch": watch(brief),
         "generated_at": brief.meta.generated_at,
         "data_as_of": brief.meta.data_as_of,
         "schema_version": brief.meta.schema_version,
@@ -132,20 +133,12 @@ def default_verdict(b: Brief) -> str:
     return f"{state}; {'late playbook live' if p.live == 'late' else 'late playbook not live'}"
 
 
-# --- Card fields ------------------------------------------------------------------------
+# --- Card pieces ------------------------------------------------------------------------
 
-def _events(b: Brief) -> list[str]:
-    cal = b.calendar
-    out = ["**EVENTS**", ""]
-    if cal.events_today:
-        for e in cal.events_today:
-            src = f" ([source]({e.url}))" if e.url else ""
-            out.append(f"- {both(e.time_et)}: {e.name} [{e.premium_relevance}]{src}")
-    else:
-        out.append(f"- No releases, Fed speakers or mega-cap earnings in the calendars today ([BLS]({BLS_URL}) · [BEA]({BEA_URL}) · [Fed]({FED_URL}))")
-    last = ", ".join(cal.earnings_prev_session) if cal.earnings_prev_session else "none listed"
-    out.append(f"- Mega-cap earnings last night: {last} ([earnings]({EARNINGS_URL}))")
-    return out
+def _tol() -> float:
+    from digest.regime import load_rules
+
+    return float(load_rules()["levels"]["confluence_tolerance_pts"])
 
 
 def _va(b: Brief) -> str:
@@ -153,12 +146,54 @@ def _va(b: Brief) -> str:
     return f"{num(lv.prior_val)}–{num(lv.prior_vah)}" if lv.prior_vah is not None else "n/a"
 
 
-def _overnight(b: Brief) -> str:
-    lv = b.levels
-    gap = f"gap {lv.gap_pct:+.2f}% ({lv.gap_pts:+.2f} pts) vs prior close {num(lv.prior_close)}" if lv.gap_pct is not None else "gap n/a"
-    where = f"spot {num(lv.spot)} is {lv.spot_vs_prior_va} prior value {_va(b)}" if lv.spot_vs_prior_va else f"spot {num(lv.spot)}; prior value n/a"
-    return (f"**OVERNIGHT:** {gap} · O/N high {num(lv.overnight_high)} / low {num(lv.overnight_low)} (ES, in SPX points) · {where} "
-            f"— {links('es', 'spx')}")
+def clusters(b: Brief) -> list[dict]:
+    """The level stack, high to low, with neighbours inside the confluence tolerance merged into one line."""
+    tol, out = _tol(), []
+    for l in b.levels.level_stack:
+        if out and out[-1]["lo"] - l.price <= tol:
+            out[-1]["lo"] = l.price
+            out[-1]["names"].append(l.name)
+        else:
+            out.append({"hi": l.price, "lo": l.price, "names": [l.name]})
+    return out
+
+
+def _cl(c: dict) -> str:
+    px = num(c["hi"]) if c["hi"] == c["lo"] else f"{num(c['lo'])}–{num(c['hi'])}"
+    names = ["round" if n.startswith("round ") else n for n in c["names"]]
+    return f"{px} {'★ ' if len(names) > 1 else ''}{' · '.join(names)}"
+
+
+def _around(b: Brief):
+    """(clusters above spot nearest first, clusters below spot nearest first)."""
+    s, cs = b.levels.spot, clusters(b)
+    if s is None:
+        return [], []
+    return [c for c in reversed(cs) if c["lo"] > s], [c for c in cs if c["hi"] < s]
+
+
+def _level_lines(b: Brief, limit: int | None) -> list[str]:
+    above, below = _around(b)
+    s = b.levels.spot
+    at = [c for c in clusters(b) if s is not None and c["lo"] <= s <= c["hi"]]
+    if limit:
+        above, below = above[:limit], below[:limit]
+    out = [f"- {_cl(c)}" for c in reversed(above)]
+    out.append(f"- **▶ spot {num(s)}**" + (f" (at {_cl(at[0])})" if at else ""))
+    out += [f"- {_cl(c)}" for c in below]
+    return out
+
+
+def _watch_levels(b: Brief) -> list[str]:
+    """Nearest level each side (a confluence cluster when one is close) and what sits beyond it."""
+    out = []
+    for arrow, side, cs in (("▲", "above", _around(b)[0]), ("▼", "below", _around(b)[1])):
+        if not cs:
+            continue
+        i = next((k for k, c in enumerate(cs[:3]) if len(c["names"]) > 1), 0)
+        nxt = f"; {side} it, next is {_cl(cs[i + 1])}" if i + 1 < len(cs) else ""
+        out.append(f"{arrow} {_cl(cs[i])}{nxt}")
+    return out
 
 
 def _vix1d(b: Brief) -> str:
@@ -167,188 +202,212 @@ def _vix1d(b: Brief) -> str:
         return "VIX1D n/a"
     if v.vix1d_pctile_20d is None:
         return f"VIX1D {num(v.vix1d)}"
-    return f"VIX1D {num(v.vix1d)} ({num(v.vix1d_pctile_20d)}th percentile of its last 20 closes: {v.vix1d_label})"
+    return f"VIX1D {num(v.vix1d)} ({v.vix1d_label}, {num(v.vix1d_pctile_20d)}th pct of 20 closes)"
+
+
+def _crush_text(b: Brief) -> str:
+    v = b.vol
+    if v.iv_crush_pct is None:
+        return "IV crush unconfirmed (no 09:35 ET print)"
+    est = "" if v.straddle_0935_pts is not None else " (VIX1D estimate)"
+    return f"IV crush {v.iv_crush_pct:+.1f}%{est}: {'done' if v.iv_crush_label == 'crush done' else 'not done, needs -20%'}"
+
+
+def _em_text(b: Brief) -> str | None:
+    v = b.vol
+    if v.expected_move_0dte_pts is None:
+        return None
+    return f"±{num(v.expected_move_0dte_pts)} ({num(v.expected_move_0dte_pct)}%) → {num(v.implied_range_low)}–{num(v.implied_range_high)}"
+
+
+def watch(b: Brief) -> list[str]:
+    """Verdict summary: the few levels, indicators and triggers that would flag an opportunity. Plain text."""
+    p, r, lv, v = b.playbook, b.regime, b.levels, b.vol
+    out: list[str] = []
+    if b.meta.market_closed_mode:
+        return out
+    if b.meta.post_type == "premarket":
+        if lv.gap_pct is not None:
+            where = f", spot {num(lv.spot)} {lv.spot_vs_prior_va} prior value {_va(b)}" if lv.spot_vs_prior_va else ""
+            out.append(f"Gap {lv.gap_pct:+.2f}%{where}")
+        if _em_text(b):
+            out.append(f"Expected move {_em_text(b)}")
+        out += _watch_levels(b)
+        out.append(_vix1d(b))
+        key = [e for e in b.calendar.events_today if e.premium_relevance in ("high", "medium") and e.time_et][:3]
+        if key:
+            out.append("Catalysts: " + "; ".join(f"{both(e.time_et)} {e.name}" for e in key))
+        out.append("Decides it: " + "; ".join(p.flip))
+    elif b.meta.post_type == "midsession":
+        if p.early_trigger:
+            out.append(f"Early trigger: {p.early_trigger}. Invalidation: {p.early_invalidation}. Time stop {p.early_time_stop_et} ET. Instrument: {p.instrument}")
+        else:
+            out.append(f"Early: {p.early_status}")
+        if p.live == "late":
+            out.append(f"Late: {p.late_status}")
+        out += _watch_levels(b)
+        out.append(f"{_crush_text(b)} · {_vix1d(b)}")
+        out.append("Flips the read: " + "; ".join(p.flip))
+    else:
+        out.append(f"Late: {p.late_status}" + (f". Trigger: {p.late_trigger}" if p.late_trigger else ""))
+        out += _watch_levels(b)
+        out.append(f"{num(v.theta_extrinsic_remaining_pct)}% of ATM extrinsic left · premium cap: {p.premium_cap} · flat by {p.flat_by_et} ET")
+        if r.holding_note:
+            out.append(f"Regime {'holding' if r.holding else 'not holding'}: {r.holding_note}")
+    return [with_pt(x) for x in out]
+
+
+# --- Technical ----------------------------------------------------------------------------
+
+def _regime_block(b: Brief) -> str:
+    r = b.regime
+    state = {"confirmed": ", confirmed", "changed": ", changed"}.get(r.confirmation or "", "")
+    out = [f"**Regime: {r.label}{state}** — {links('spx', 'spy')}", ""]
+    for x in r.rules_fired:
+        note = x.startswith(("provisional", "no rule set", "before the", "market closed", "data missing"))
+        out.append(with_pt(f"- {'◷' if note else '✓'} {x.split(': ', 1)[-1] if x.split(': ', 1)[0] == r.label else x}"))
+    out += [with_pt(f"- ✗ {x}") for x in r.rules_failed]
+    out += [f"- ⚠ {x}" for x in r.conflicts]
+    if r.holding_note:
+        out.append(f"- Now: {r.holding_note} ({'holding' if r.holding else 'not holding'})")
+    return "\n".join(out)
+
+
+def _structure(b: Brief) -> str:
+    i, lv, br = b.intraday, b.levels, b.breadth
+    parts = []
+    if i.spot_vs_or:
+        parts.append(f"spot {num(lv.spot)} {i.spot_vs_or} the opening range {num(i.or_low)}–{num(i.or_high)}")
+    if i.vwap is not None:
+        parts.append(f"VWAP {num(i.vwap)} ({num(i.vwap_crosses)} crosses, spot {i.spot_minus_vwap_pts:+.2f})")
+    if i.profile_shape:
+        parts.append(f"{i.profile_shape}-profile, POC {num(i.dev_poc)}, value {num(i.dev_val)}–{num(i.dev_vah)}")
+    if lv.session_high is not None:
+        parts.append(f"range {num(lv.session_low)}–{num(lv.session_high)}, spot at {num(lv.range_position_pct)}%")
+    if br.sectors_up_count is not None:
+        parts.append(f"{br.sectors_up_count}/{br.sectors_total} sectors up")
+    return f"**Structure:** {' · '.join(parts)} — {links('spx', 'spy', 'sectors')}"
+
+
+def _overnight(b: Brief) -> str:
+    lv = b.levels
+    gap = f"gap {lv.gap_pct:+.2f}% ({lv.gap_pts:+.2f}) vs close {num(lv.prior_close)}" if lv.gap_pct is not None else "gap n/a"
+    where = f"spot {num(lv.spot)} {lv.spot_vs_prior_va} prior value {_va(b)}" if lv.spot_vs_prior_va else f"spot {num(lv.spot)}"
+    return f"**Overnight:** {gap} · O/N {num(lv.overnight_low)}–{num(lv.overnight_high)} · {where} — {links('es', 'spx')}"
 
 
 def _vol(b: Brief) -> str:
     v = b.vol
-    term = f"term structure {v.term_structure_label} (VIX/VIX3M {num(v.vix_vix3m_ratio)})" if v.term_structure_label else "term structure n/a"
-    return f"**VOL:** VIX {num(v.vix)} · {_vix1d(b)} · {term} — {links('vix', 'vix1d', 'vixcentral')}"
-
-
-def _straddle(b: Brief) -> str:
-    v = b.vol
-    if v.expected_move_0dte_pts is None:
-        return f"ATM straddle: no free quote for this run (manual input; read it from {links('cboe_quotes', 'chain')})"
-    t = f", quoted {both(v.straddle_quote_time_et)}" if v.straddle_quote_time_et else ""
-    return (f"ATM straddle {num(v.expected_move_0dte_pts)} at the {num(v.straddle_strike)} strike{t} = ±{num(v.expected_move_0dte_pts)} pts "
-            f"({num(v.expected_move_0dte_pct)}% of spot), implied range {num(v.implied_range_low)}–{num(v.implied_range_high)} — {links('chain', 'cboe_quotes')}")
-
-
-def _stack(b: Brief) -> list[str]:
-    lv = b.levels
-    out = ["**LEVEL STACK**", ""]
-    if not lv.level_stack:
-        return out + ["- unavailable"]
-    placed = False
-    for l in lv.level_stack:
-        if not placed and lv.spot is not None and l.price < lv.spot:
-            out.append(f"- **▶ spot {num(lv.spot)}**")
-            placed = True
-        star = f" ★ with {l.confluence_with}" if l.confluence else ""
-        out.append(f"- {num(l.price)} {l.name}{star}")
-    if not placed and lv.spot is not None:
-        out.append(f"- **▶ spot {num(lv.spot)}**")
-    out += ["", f"★ marks confluence (levels within {num(_tol())} pts). Value area from prior-day 5-min volume-at-price — {links('spx', 'spy', 'es')}"]
-    return out
-
-
-def _tol() -> float:
-    from digest.regime import load_rules
-
-    return float(load_rules()["levels"]["confluence_tolerance_pts"])
-
-
-def _plan(b: Brief) -> list[str]:
-    p = b.playbook
-    out = ["**PLAN**", ""]
-    out.append(with_pt(f"- Early ({p.early_window_et} ET): {p.early_status}" + (f". Trigger: {p.early_trigger}" if p.early_trigger else "")))
-    out.append(with_pt(f"- Late ({p.late_window_et} ET): {p.late_status}"))
-    out += [with_pt(f"- Flips the read: {f}") for f in p.flip]
-    return out
-
-
-def _evidence(b: Brief) -> list[str]:
-    r, i, br = b.regime, b.intraday, b.breadth
-    out = ["**REGIME EVIDENCE**", ""]
-    out += [with_pt(f"- {x}") for x in r.rules_fired]
-    out += [with_pt(f"- Not met: {x}") for x in r.rules_failed]
-    out += [f"- Conflict: {x}" for x in r.conflicts]
-    if i.spot_vs_or:
-        out.append(f"- ORB: spot {num(b.levels.spot)} is {i.spot_vs_or} the opening range {num(i.or_low)}–{num(i.or_high)}")
-    if i.vwap is not None:
-        out.append(f"- VWAP {num(i.vwap)}: {num(i.vwap_crosses)} cross(es) so far; spot is {num(abs(i.spot_minus_vwap_pts))} pts "
-                   f"{'above' if i.spot_minus_vwap_pts >= 0 else 'below'}")
-    if i.profile_shape:
-        out.append(f"- Profile so far: {i.profile_shape}-shape, POC {num(i.dev_poc)}, value {num(i.dev_val)}–{num(i.dev_vah)}")
-    if br.sectors_up_count is not None:
-        out.append(f"- Breadth: {br.sectors_up_count} of {br.sectors_total} sectors up")
-    out += ["", f"— {links('spx', 'spy', 'sectors')}"]
-    return out
-
-
-def _crush(b: Brief) -> str:
-    v = b.vol
-    if v.iv_crush_pct is None:
-        return ("**IV CRUSH:** unconfirmed. No 09:35 ET / 06:35 PT straddle print for today (manual input: "
-                f"`python -m digest straddle --set PRICE`) — {links('cboe_quotes', 'chain')}")
-    state = "done" if v.iv_crush_label == "crush done" else "not done"
-    if v.straddle_0935_pts is not None and v.expected_move_0dte_pts is not None:
-        return (f"**IV CRUSH:** straddle {num(v.expected_move_0dte_pts)} now vs {num(v.straddle_0935_pts)} at "
-                f"{both(v.straddle_0935_time_et or '09:35')} ({v.straddle_0935_source}) = {v.iv_crush_pct:+.2f}%: {state} — {links('chain', 'cboe_quotes')}")
-    return with_pt(f"**IV CRUSH:** {v.iv_crush_pct:+.2f}% ({v.iv_crush_basis}): {state} — {links('vix1d', 'cboe_quotes')}")
+    term = f"{v.term_structure_label} (VIX/VIX3M {num(v.vix_vix3m_ratio)})" if v.term_structure_label else "term structure n/a"
+    return f"**Vol:** VIX {num(v.vix)} · {_vix1d(b)} · {term} — {links('vix', 'vix1d', 'vixcentral')}"
 
 
 def _premium(b: Brief) -> str:
     v = b.vol
-    theta = (f"{num(v.theta_extrinsic_remaining_pct)}% of ATM extrinsic left ([theta table]({CONCEPT_BASE}premium.html#theta))"
-             if v.theta_extrinsic_remaining_pct is not None else "theta n/a")
-    return f"**PREMIUM:** {_straddle(b)} · {_vix1d(b)} — {link('vix1d')} · {theta}"
+    parts = []
+    if v.expected_move_0dte_pts is None:
+        parts.append("straddle: no free quote this run")
+    else:
+        t = f", {both(v.straddle_quote_time_et)}" if v.straddle_quote_time_et else ""
+        parts.append(f"straddle {num(v.expected_move_0dte_pts)} @ {num(v.straddle_strike)}{t} = {_em_text(b)}")
+    if b.meta.post_type != "premarket":
+        if v.straddle_0935_pts is not None:
+            parts.append(f"{_crush_text(b)} vs {num(v.straddle_0935_pts)} at {both(v.straddle_0935_time_et or '09:35')} ({v.straddle_0935_source})")
+        else:
+            parts.append(_crush_text(b))
+    if v.theta_extrinsic_remaining_pct is not None and b.meta.post_type != "premarket":
+        parts.append(f"{num(v.theta_extrinsic_remaining_pct)}% of ATM extrinsic left ([theta table]({CONCEPT_BASE}premium.html#theta))")
+    label = "Expected move" if b.meta.post_type == "premarket" else "Premium"
+    return with_pt(f"**{label}:** {' · '.join(parts)} — {links('chain', 'cboe_quotes')}")
 
 
-def _in_play(b: Brief) -> list[str]:
-    lv = b.levels
-    out = ["**LEVELS IN PLAY**", ""]
-    if lv.spot is None or not lv.level_stack:
-        return out + ["- unavailable"]
-    stack = [l for l in lv.level_stack if l.kind != "vwap"]
-    for side in ("above", "below"):
-        cands = [l for l in stack if (l.price > lv.spot if side == "above" else l.price < lv.spot)]
-        if not cands:
-            out.append(f"- {side.capitalize()}: no level in the stack")
-            continue
-        conf = [l for l in cands if l.confluence]
-        l = min(conf or cands, key=lambda x: abs(x.price - lv.spot))
-        beyond = [x for x in cands if (x.price > l.price + _tol() if side == "above" else x.price < l.price - _tol())]
-        nxt = min(beyond, key=lambda x: abs(x.price - l.price)) if beyond else None
-        tag = f" ★ with {l.confluence_with}" if l.confluence else " (no confluence nearby; nearest level)"
-        means = f"acceptance {side} it opens {num(nxt.price)} {nxt.name}" if nxt else f"acceptance {side} it leaves the level stack"
-        out.append(f"- {side.capitalize()}: {num(l.price)} {l.name}{tag}: {means}")
-    out += ["", f"— {links('spx', 'spy')}"]
-    return out
+def _levels(b: Brief, limit: int | None) -> str:
+    if not b.levels.level_stack:
+        return "**Levels:** unavailable"
+    return "\n".join([f"**Levels** (★ = within {num(_tol())} pts of each other) — {links('spx', 'spy', 'es')}", ""] + _level_lines(b, limit))
 
 
-def _early(b: Brief) -> str:
+def _playbook(b: Brief) -> str:
+    """Status of each playbook. Triggers are in the Verdict section, not repeated here."""
     p = b.playbook
-    s = f"**EARLY PLAYBOOK:** {p.early_status}"
-    if p.early_trigger:
-        s += (f" · trigger: {p.early_trigger} · invalidation: {p.early_invalidation} · time stop {p.early_time_stop_et} ET"
-              f" · instrument: {p.instrument}")
-    if p.live == "late":
-        s += f"\n\n**LATE PLAYBOOK:** {p.late_status}"
-    return with_pt(s)
+    out = [f"**Playbook: {p.live}**", ""]
+    early = f"- Early ({p.early_window_et} ET): {p.early_status}"
+    if p.early_trigger and b.meta.post_type == "premarket":
+        early += f". Trigger {p.early_trigger}"
+    out += [early, f"- Late ({p.late_window_et} ET): {p.late_status}"]
+    if b.meta.post_type == "afternoon":
+        out.append("- Do not: " + " · ".join(p.do_not))
+    return with_pt("\n".join(out))
 
 
-def _range(b: Brief) -> str:
-    lv, i = b.levels, b.intraday
-    dev = f"developing value {num(i.dev_val)}–{num(i.dev_vah)} (POC {num(i.dev_poc)})" if i.dev_vah is not None else "developing value n/a"
-    return (f"**RANGE SO FAR:** high {num(lv.session_high)} / low {num(lv.session_low)} · spot {num(lv.spot)} at "
-            f"{num(lv.range_position_pct)}% of the range · {dev} · prior value {_va(b)} — {links('spx', 'spy')}")
+# --- News / macro ------------------------------------------------------------------------------
 
-
-def _late(b: Brief) -> str:
-    p = b.playbook
-    s = f"**LATE TRIGGER:** {p.late_status}"
-    if p.late_trigger:
-        s += f" · {p.late_trigger}"
-    s += f" · premium cap: {p.premium_cap} · flat by {p.flat_by_et} ET"
-    return with_pt(s)
-
-
-def _theta(b: Brief) -> str:
+def _news(b: Brief) -> str:
+    cal, xa = b.calendar, b.cross_asset
+    out = []
     now_et = datetime.strptime(b.meta.as_of_pt, "%Y-%m-%d %H:%M").replace(tzinfo=config.PT).astimezone(config.ET).strftime("%H:%M")
-    return (f"**THETA NOW:** {num(b.vol.theta_extrinsic_remaining_pct)}% of ATM extrinsic remaining at {both(now_et)} "
-            f"(sqrt-of-time model, [theta table]({CONCEPT_BASE}premium.html#theta))")
+    for e in cal.events_today:
+        done = " (out)" if e.time_et and e.time_et <= now_et and b.meta.post_type != "premarket" else ""
+        src = f" ([source]({e.url}))" if e.url else ""
+        out.append(f"- {both(e.time_et)} · {e.name} · {e.premium_relevance}{done}{src}")
+    if not cal.events_today:
+        out.append(f"- Nothing scheduled today in the calendars ([BLS]({BLS_URL}) · [BEA]({BEA_URL}) · [Fed]({FED_URL}))")
+    if b.meta.post_type == "premarket" or cal.earnings_prev_session:
+        out.append(f"- Mega-cap earnings last night: {', '.join(cal.earnings_prev_session) or 'none listed'} ([earnings]({EARNINGS_URL}))")
+    macro = []
+    if xa.us10y_yield_pct is not None:
+        macro.append(f"10y {num(xa.us10y_yield_pct)}%" + (f" ({xa.us10y_change_bp:+.1f} bp)" if xa.us10y_change_bp is not None else ""))
+    for name, lvl, ch in (("DXY", xa.dxy, xa.dxy_change_pct), ("oil", xa.oil, xa.oil_change_pct), ("gold", xa.gold, xa.gold_change_pct)):
+        if lvl is not None:
+            macro.append(f"{name} {num(lvl)}" + (f" ({ch:+.2f}%)" if ch is not None else ""))
+    if macro:
+        out.append(f"- {' · '.join(macro)} — [Yahoo]({yq('^TNX')})")
+    for h in cal.headlines[:3]:
+        out.append(f"- {h.title} ({h.source})")
+    return "\n".join(out)
 
 
-def _sources(b: Brief) -> list[str]:
-    out = ["**Sources**", ""]
-    for s in b.data_quality.sources:
-        when = ""
-        if s.fetched_at_utc:
-            t = datetime.fromisoformat(s.fetched_at_utc).astimezone(config.ET).strftime("%H:%M")
-            when = f", fetched {both(t)}"
-        out.append(f"- [{s.name}]({s.url}){when}{'' if s.ok else ' (failed this run)'}")
+def _sources(b: Brief) -> str:
+    src = b.data_quality.sources
+    times = sorted(datetime.fromisoformat(s.fetched_at_utc).astimezone(config.ET).strftime("%H:%M") for s in src if s.fetched_at_utc)
+    when = ""
+    if times:
+        when = f" (fetched {both(times[0])})" if times[0] == times[-1] else with_pt(f" (fetched {times[0]}–{times[-1]} ET)")
+    items = " · ".join(f"[{s.name}]({s.url}){'' if s.ok else ' (failed)'}" for s in src)
     gex = f"[vendor]({b.positioning.gex_vendor_url})" if b.positioning.gex_vendor_url else "vendor link not set"
-    out.append(f"- Dealer gamma / GEX: not computed or estimated ({gex})")
-    out += ["", "Concepts: " + " · ".join(f"[{n}]({CONCEPT_BASE}{slug}.html)" for n, slug in CONCEPTS)]
-    return out
+    return (f"**Sources**{when}: {items}\n\nDealer gamma / GEX: not computed or estimated ({gex}). "
+            "Concepts: " + " · ".join(f"[{n}]({CONCEPT_BASE}{slug}.html)" for n, slug in CONCEPTS))
+
+
+NARRATIVE_UNAVAILABLE = "*Narrative unavailable: this is the computed verdict.*"
 
 
 def card(b: Brief, verdict: str | None = None, narrative: str | None = None) -> str:
-    """The whole post body."""
-    blocks: list[str] = [f"**VERDICT:** {verdict or default_verdict(b)}"]
-    pt = b.meta.post_type
-    if b.meta.market_closed_mode:
-        blocks += ["\n".join(_events(b)), _vol(b)]
-    elif pt == "premarket":
-        blocks += ["\n".join(_events(b)), _overnight(b), _vol(b), f"**EXPECTED MOVE:** {_straddle(b)}", "\n".join(_stack(b)), "\n".join(_plan(b))]
-    elif pt == "midsession":
-        blocks += ["\n".join(_evidence(b)), _crush(b), _premium(b), "\n".join(_in_play(b)), _early(b)]
-    else:
-        blocks += [_range(b), _late(b), _theta(b), _premium(b),
-                   with_pt("**DO NOT:** " + " · ".join(b.playbook.do_not))]
+    """The whole post body: Verdict (with the watch list), Technical, News / macro, sources."""
+    blocks: list[str] = ["## Verdict", f"**{verdict or default_verdict(b)}**"]
+    w = watch(b)
+    if w:
+        blocks.append("\n".join(f"- {x}" for x in w))
     if narrative:
         blocks.append(narrative.strip())
+    pt = b.meta.post_type
+    blocks.append("## Technical")
+    if b.meta.market_closed_mode:
+        blocks.append(_vol(b))
+    elif pt == "premarket":
+        blocks += [_overnight(b), _vol(b), _premium(b), _levels(b, None), _playbook(b)]
+    else:
+        blocks += [_regime_block(b), _structure(b), _premium(b), _levels(b, 3), _playbook(b)]
+    blocks += ["## News / macro", _news(b)]
     if b.data_quality.manual_inputs:
-        blocks.append("\n".join(["**Manual inputs open**", ""] + [with_pt(f"- {m}") for m in b.data_quality.manual_inputs]))
-    blocks += [MISSED_DAY, "\n".join(_sources(b))]
+        blocks.append("**Manual inputs open:** " + with_pt("; ".join(b.data_quality.manual_inputs)))
+    blocks += [MISSED_DAY, _sources(b)]
     return "\n\n".join(blocks) + "\n"
 
 
 def unavailable_body(b: Brief) -> str:
-    """Claude call failed: same card with the deterministic verdict and no narrative."""
-    return "**Narrative unavailable: showing the computed card.**\n\n" + card(b)
+    """Claude call failed: same card with the computed verdict and a one-line note in place of the narrative."""
+    return card(b, None, NARRATIVE_UNAVAILABLE)
 
 
 def post_markdown(fm: dict, body: str) -> str:

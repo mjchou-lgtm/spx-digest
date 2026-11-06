@@ -92,7 +92,11 @@ def body_html(p: Post) -> str:
     md_text = p.body_md
     if p.fm.get("narrative") == "claude":
         md_text = md_text.replace("<", "&lt;")  # model output is never trusted as HTML
-    return markdown.markdown(md_text, extensions=MD_EXT)
+    html = markdown.markdown(md_text, extensions=MD_EXT)
+    if "<h2>Technical</h2>" in html:  # schema 2 cards: the verdict section becomes a highlighted box
+        head, rest = html.split("<h2>Technical</h2>", 1)
+        html = f'<section class="verdict-box">{head}</section>\n<h2>Technical</h2>{rest}'
+    return html
 
 
 def brief_tables(brief: dict | None) -> list[dict]:

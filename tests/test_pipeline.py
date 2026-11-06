@@ -168,8 +168,10 @@ def test_build_site_from_fixture(tmp_path, brief_mid):
     page = (out / "posts/2026-11-06/midsession.html").read_text()
     assert "Narrative unavailable" in page and "Indicator brief" in page and "Data quality" in page
     assert "↔ balance" in page.replace("<span aria-hidden=\"true\">↔</span> ", "↔ ")  # icon + label, not colour alone
-    assert 'href="../../concepts/premium.html#theta"' in page and "<strong>VERDICT:</strong>" in page
-    assert "regime classified as balance; playbook: none" in (out / "index.html").read_text()
+    assert 'href="../../concepts/premium.html#theta"' in page
+    assert '<section class="verdict-box"><h2>Verdict</h2>' in page and page.index("verdict-box") < page.index("<h2>Technical</h2>") < page.index("<h2>News / macro</h2>")
+    home = (out / "index.html").read_text()
+    assert "regime classified as balance; playbook: none" in home and '<ul class="watch">' in home and "Early: not live, high IV on a balance day" in home
     prem = (out / "concepts/premium.html").read_text()
     assert 'id="theta"' in prem and "10:30 ET / 07:30 PT" in prem and "92%" in prem and "28%" in prem
     rules = (out / "concepts/rules.html").read_text()

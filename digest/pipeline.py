@@ -76,15 +76,15 @@ def _pick(d: dict, model) -> dict:
 
 
 SOURCE_PAGES = {
-    "daily": ("Yahoo Finance daily bars via yfinance (SPX, ES, VIX family, rates, ETFs)", "https://finance.yahoo.com/quote/%5EGSPC/history"),
-    "intraday": ("Yahoo Finance 5-min bars via yfinance (SPX, ES, SPY, VIX, VIX1D)", "https://finance.yahoo.com/quote/%5EGSPC/chart"),
-    "option_chain": ("Yahoo Finance SPX option chain via yfinance", "https://finance.yahoo.com/quote/%5ESPX/options"),
-    "cboe": ("Cboe daily market statistics", None),
-    "fred": ("FRED (St. Louis Fed) series", "https://fred.stlouisfed.org/"),
-    "fed_calendar": ("Federal Reserve calendar", config.FED_CALENDAR_URL),
-    "treasury_upcoming": ("TreasuryDirect upcoming auctions", config.TREASURY_UPCOMING_URL),
-    "earnings": ("Yahoo Finance earnings dates via yfinance", "https://finance.yahoo.com/calendar/earnings"),
-    "ff_calendar": ("ForexFactory weekly calendar feed", config.FF_CALENDAR_URL),
+    "daily": ("Yahoo daily bars", "https://finance.yahoo.com/quote/%5EGSPC/history"),
+    "intraday": ("Yahoo 5-min bars", "https://finance.yahoo.com/quote/%5EGSPC/chart"),
+    "option_chain": ("Yahoo SPX chain", "https://finance.yahoo.com/quote/%5ESPX/options"),
+    "cboe": ("Cboe daily stats", None),
+    "fred": ("FRED", "https://fred.stlouisfed.org/"),
+    "fed_calendar": ("Fed calendar", config.FED_CALENDAR_URL),
+    "treasury_upcoming": ("TreasuryDirect auctions", config.TREASURY_UPCOMING_URL),
+    "earnings": ("Yahoo earnings dates", "https://finance.yahoo.com/calendar/earnings"),
+    "ff_calendar": ("ForexFactory calendar", config.FF_CALENDAR_URL),
 }
 
 
@@ -180,7 +180,7 @@ def build_brief(raw: dict, rules: dict | None = None, version: int = 1, generate
                 dq.fallbacks.append("IV crush is an estimate from VIX1D (no 09:35 ET straddle print for today)")
         vol.update(cr)
         if not vol.get("straddle_0935_pts"):
-            dq.manual_inputs.append("09:35 ET ATM straddle print: python -m digest straddle --set PRICE (or the straddle workflow's price input)")
+            dq.manual_inputs.append("09:35 ET straddle print (Generate page, or python -m digest straddle --set PRICE)")
     pos = _pick(ch, Positioning)
     pos["gex_vendor_url"] = config.GEX_VENDOR_URL or None
     xa = {**compute_cross_asset(m, open_et), **compute_fred(_src(raw, "fred"))}
@@ -236,7 +236,7 @@ def build_brief(raw: dict, rules: dict | None = None, version: int = 1, generate
         dq.notes.append(f"early close: session ends {meta.session_close_pt} PT")
     if chain is None and not closed:
         dq.notes.append("option chain unavailable: straddle, expected move and put/call ratios are null")
-        dq.manual_inputs.append("ATM straddle price: no free quote was available for this run; see the Cboe delayed quotes link")
+        dq.manual_inputs.append("ATM straddle (no free quote this run; read it from Cboe delayed quotes)")
     dq.sources = source_refs(raw)
     earn_prev = list(ctx.get("prev_session_earnings") or []) or [
         e["name"] for e in events_for(prev, cal_sources, rules) if e["category"] == "MEGACAP_EARNINGS"]

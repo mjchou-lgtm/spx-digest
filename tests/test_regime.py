@@ -176,7 +176,7 @@ def test_normal_iv_trend_waits_for_the_crush(brief_td_mid):
 def test_afternoon_names_one_late_trigger(brief_td_aft):
     p = brief_td_aft.playbook
     assert p.live == "late" and p.early_status.startswith("window closed")
-    assert p.late_status.startswith("armed") and p.late_trigger and "below" in p.late_trigger
+    assert p.late_status.startswith("armed") and p.late_trigger and "below" in p.late_trigger and "straight 5-min closes" in p.late_trigger
     assert p.premium_cap == playbook.NOT_SET and p.flat_by_et == "15:45"
     assert "counter-trend on gap-and-go" in p.do_not and "add to losers" in p.do_not
 

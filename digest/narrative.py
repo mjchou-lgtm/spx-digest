@@ -13,8 +13,8 @@ from dataclasses import dataclass, field
 from digest import config
 from digest.brief import Brief
 
-MAX_WORDS = 150
-HARD_MAX_WORDS = 190  # over MAX_WORDS is a warning; over this the card is published without the narrative
+MAX_WORDS = 60
+HARD_MAX_WORDS = 90  # over MAX_WORDS is a warning; over this the card is published without the narrative
 
 POST_PURPOSE = {
     "premarket": "pre-market card (09:15 ET / 06:15 PT): likely day type and which playbook could go live",
@@ -24,7 +24,7 @@ POST_PURPOSE = {
 
 
 def system_prompt(post_type: str) -> str:
-    return f"""You write two things for one card of a daily SPX 0DTE digest, the {POST_PURPOSE[post_type]}: a VERDICT line and a short narrative. Code renders every other field of the card from the same JSON you are given.
+    return f"""You write two things for one card of a daily SPX 0DTE digest, the {POST_PURPOSE[post_type]}: a VERDICT line and a very short narrative. Code renders every other part of the card from the same JSON you are given: a watch list under your verdict, then Technical and News / macro sections.
 
 Reader: an experienced SPX 0DTE trader reading on a phone between sessions. They trade single-leg, defined-risk, flat by 15:45 ET, and they trade the regime, not a directional view. Two playbooks, kept separate: early (10:00–13:00 ET, a conviction trade off the opening range after IV crush) and late (14:30–15:45 ET, an execution trade on an objective trigger, premium-capped). The card is a quick reference, not an essay.
 
@@ -39,9 +39,9 @@ Rules:
 
 Output exactly this, and nothing before or after it:
 
-VERDICT: <one line{_verdict_hint(post_type)}>
+VERDICT: <one short line{_verdict_hint(post_type)}>
 
-<narrative: at most {MAX_WORDS} words, one short paragraph or up to four short bullets, saying what the evidence in the fields adds up to and what to watch next>"""
+<narrative: at most {MAX_WORDS} words, two or three short plain sentences: what the evidence adds up to, and the one thing to watch next. The card already lists the levels, premium numbers and triggers right above and below your text, so do not recite them; use a number only when the point needs it.>"""
 
 
 def _verdict_hint(post_type: str) -> str:

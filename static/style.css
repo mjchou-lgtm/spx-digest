@@ -58,3 +58,11 @@ tbody th { color: var(--muted); font-weight: 500; width: 45%; }
 .concept h2 { margin-top: 26px; }
 #straddle-form .row { display: flex; flex-wrap: wrap; gap: 8px; }
 #straddle-price { flex: 1 1 200px; min-width: 0; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; }
+.verdict-box { background: var(--panel); border: 1px solid var(--line); border-left: 5px solid var(--link); border-radius: 10px; padding: 4px 14px 8px; margin: 12px 0 18px; }
+.verdict-box h2 { margin: 8px 0 2px; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.verdict-box > p:first-of-type { font-size: 1.2rem; line-height: 1.35; margin: 4px 0 8px; }
+.verdict-box ul, .watch { padding-left: 1.1em; margin: 6px 0; }
+.verdict-box li, .watch li { margin: 5px 0; }
+.watch { font-size: .93rem; }
+.card h2 { border-top: 1px solid var(--line); padding-top: 14px; }
+.verdict-box h2 { border-top: 0; padding-top: 0; }
