@@ -229,6 +229,8 @@ class Intraday(_Flat):
     dev_vah: F = None
     dev_val: F = None
     dev_poc_position: F = None
+    cutoff_poc: F = None
+    cutoff_poc_position: F = None
     profile_shape: Optional[Literal["D", "P", "b", "elongated"]] = None
     accepted_outside_dev_va: Optional[Literal["above", "below", "no"]] = None
     volume_ratio_recent: F = None

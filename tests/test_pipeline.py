@@ -163,7 +163,8 @@ def test_build_site_from_fixture(tmp_path, brief_mid):
     assert build.build_site(root, out) == 1
     for f in ["index.html", "archive/index.html", "data/index.html", "about/index.html", "feed.xml", "api/latest.json",
               "posts/2026-11-06/midsession.html", "static/style.css", "run/index.html", "static/run.js", "concepts/index.html",
-              "concepts/daily-structure.html", "concepts/premium.html", "concepts/volume-profile.html", "concepts/edge.html", "concepts/rules.html"]:
+              "concepts/daily-structure.html", "concepts/premium.html", "concepts/volume-profile.html", "concepts/edge.html", "concepts/rules.html",
+              "concepts/glossary.html"]:
         assert (out / f).exists(), f
     page = (out / "posts/2026-11-06/midsession.html").read_text()
     assert "Narrative unavailable" in page and "Indicator brief" in page and "Data quality" in page
@@ -171,7 +172,8 @@ def test_build_site_from_fixture(tmp_path, brief_mid):
     assert 'href="../../concepts/premium.html#theta"' in page
     assert '<section class="verdict-box"><h2>Verdict</h2>' in page and page.index("verdict-box") < page.index("<h2>Technical</h2>") < page.index("<h2>News / macro</h2>")
     home = (out / "index.html").read_text()
-    assert "regime classified as balance; playbook: none" in home and '<ul class="watch">' in home and "Early: not live, high IV on a balance day" in home
+    assert "Range-bound day (balance); playbook: none" in home and '<ul class="watch">' in home
+    assert "Early setup: not live, option prices are high on a range-bound day" in home and "In plain terms: buyers and sellers roughly agree" in home
     prem = (out / "concepts/premium.html").read_text()
     assert 'id="theta"' in prem and "10:30 ET / 07:30 PT" in prem and "92%" in prem and "28%" in prem
     rules = (out / "concepts/rules.html").read_text()
@@ -227,7 +229,7 @@ def test_run_context_reads_earlier_posts(tmp_path, brief_td_mid):
     storage.write_straddle(tmp_path, "2026-11-05", {"pts": 70.0, "time_et": "09:35", "source": "manual"})
     ctx = cli.build_context([tmp_path], date(2026, 11, 5), "afternoon")
     assert ctx["prior_regime_label"] == "trend_down" and ctx["straddle_0935"]["pts"] == 70.0
-    assert cli._prior_verdict(cli.prior_post([tmp_path], date(2026, 11, 5), "afternoon")).endswith("regime classified as trend_down; playbook: early")
+    assert cli._prior_verdict(cli.prior_post([tmp_path], date(2026, 11, 5), "afternoon")).endswith("Downtrend day (trend_down); playbook: early")
     # Schema 1.x briefs are not used as context.
     assert cli.build_context([ROOT], date(2026, 11, 4), "afternoon").get("prior_regime_label") is None
 

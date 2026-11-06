@@ -28,7 +28,7 @@ def label(b, rules=RULES, prior=None):
 def test_2026_11_05_is_trend_down(brief_td_mid, brief_td_aft):
     for b in (brief_td_mid, brief_td_aft):
         assert b.regime.label == "trend_down"
-        assert any("below prior value" in r for r in b.regime.rules_fired)
+        assert any("below yesterday's value area" in r for r in b.regime.rules_fired)
     assert brief_td_mid.regime.confirmation == "first classification"
     assert brief_td_aft.regime.confirmation == "confirmed" and brief_td_aft.regime.holding is True
 
@@ -43,7 +43,7 @@ def test_2026_11_06_is_balance(brief_mid):
 
 def test_before_classification_is_undetermined_with_a_lean(brief_pre):
     r = brief_pre.regime
-    assert r.label == "undetermined" and "before the 10:30 ET classification" in r.rules_fired[0]
+    assert r.label == "undetermined" and r.rules_fired[0].startswith("before the 10:30 ET classification")
     assert r.lean in ("gap_up", "gap_down", "open_above_value", "open_below_value", "open_inside_value")
 
 
@@ -85,7 +85,7 @@ def test_trend_needs_vwap_respected_and_one_sided(brief_mid):
 
 def test_balance_needs_two_way_vwap_and_symmetric_profile(brief_mid):
     assert label(variant(brief_mid, intraday__vwap_crosses_by_cutoff=1)).label == "undetermined"
-    assert label(variant(brief_mid, intraday__dev_poc_position=0.9)).label == "undetermined"
+    assert label(variant(brief_mid, intraday__cutoff_poc_position=0.9)).label == "undetermined"
 
 
 def test_gap_day_that_neither_goes_nor_fills_is_undetermined(brief_mid):
@@ -93,7 +93,7 @@ def test_gap_day_that_neither_goes_nor_fills_is_undetermined(brief_mid):
     b = variant(brief_mid, levels__gap_pct=0.88, levels__open_vs_prior_va="above", intraday__snapshot_vs_or="inside",
                 intraday__snapshot_vs_prior_va="above", intraday__vwap_crosses_by_cutoff=3, intraday__vwap_above_frac=0.89)
     r = label(b)
-    assert r.label == "undetermined" and "no rule set is fully met" in r.rules_fired
+    assert r.label == "undetermined" and "none of the day types passes all of its checks" in r.rules_fired
     assert len(r.rules_failed) >= 3
 
 
@@ -117,6 +117,18 @@ def test_thresholds_come_from_yaml(brief_mid):
     assert label(b, rules).label == "balance"
     rules["classify"]["balance_min_vwap_crosses"] = 5
     assert label(b, rules).label == "undetermined"
+
+
+def test_label_does_not_drift_after_the_cutoff(raw_mid):
+    """The balance check reads the profile as of 11:00 ET, so a later card gets the same label."""
+    import json as _json
+
+    from digest.pipeline import build_brief
+
+    later = _json.loads(_json.dumps(raw_mid))
+    later["post_type"] = "afternoon"
+    b = build_brief(later)
+    assert b.regime.label == "balance" and b.intraday.cutoff_poc_position is not None
 
 
 def test_confirmed_and_changed(brief_td_aft):
@@ -149,9 +161,9 @@ def test_premarket_playbook_is_pending(brief_pre):
 def test_high_iv_balance_sits_out(brief_mid):
     assert brief_mid.vol.iv_high and brief_mid.regime.label == "balance"
     p = brief_mid.playbook
-    assert p.live == "none" and "high IV on a balance day" in p.early_status and "high IV on a balance day" in p.late_status
+    assert p.live == "none" and p.early_status == playbook.SIT_OUT == p.late_status and "sit-out" in p.early_status
     relaxed = pb_for(brief_mid, shared__sit_out_high_iv_balance=False)
-    assert relaxed.live == "late" and "regime is balance" in relaxed.early_status
+    assert relaxed.live == "late" and relaxed.early_status == "not live, it needs an uptrend, downtrend or gap-and-go day and today is a range-bound day"
 
 
 def test_high_iv_trend_is_early_with_debit_spread(brief_td_mid):
@@ -159,7 +171,8 @@ def test_high_iv_trend_is_early_with_debit_spread(brief_td_mid):
     assert b.vol.iv_high and b.vol.iv_crush_label == "still elevated"
     p = b.playbook
     assert p.live == "early" and p.early_status == "live" and p.direction == "down" and p.instrument == "debit spread"
-    assert "opening-range low" in p.early_trigger and "VWAP" in p.early_invalidation and p.early_time_stop_et == "13:00"
+    assert p.early_trigger.startswith("two 5-minute closes in a row below the bottom of the first 30 minutes (")
+    assert "VWAP" in p.early_invalidation and p.early_time_stop_et == "13:00"
 
 
 def test_normal_iv_trend_waits_for_the_crush(brief_td_mid):
@@ -168,7 +181,7 @@ def test_normal_iv_trend_waits_for_the_crush(brief_td_mid):
     assert p.live == "late" and "IV crush not done" in p.early_status and p.early_trigger is None
     done = variant(normal, vol__iv_crush_label="crush done", vol__iv_crush_pct=-25.0)
     p = pb_for(done)
-    assert p.live == "early" and p.instrument == "single leg"
+    assert p.live == "early" and p.instrument == "single option"
     unknown = variant(normal, vol__iv_crush_label=None, vol__iv_crush_pct=None)
     assert "unconfirmed" in pb_for(unknown).early_status
 
@@ -176,7 +189,7 @@ def test_normal_iv_trend_waits_for_the_crush(brief_td_mid):
 def test_afternoon_names_one_late_trigger(brief_td_aft):
     p = brief_td_aft.playbook
     assert p.live == "late" and p.early_status.startswith("window closed")
-    assert p.late_status.startswith("armed") and p.late_trigger and "below" in p.late_trigger and "straight 5-min closes" in p.late_trigger
+    assert p.late_status.startswith("ready, opens 14:30 ET") and "two 5-minute closes in a row below the bottom of today's value area" in p.late_trigger
     assert p.premium_cap == playbook.NOT_SET and p.flat_by_et == "15:45"
     assert "counter-trend on gap-and-go" in p.do_not and "add to losers" in p.do_not
 

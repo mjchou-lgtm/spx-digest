@@ -13,8 +13,8 @@ from dataclasses import dataclass, field
 from digest import config
 from digest.brief import Brief
 
-MAX_WORDS = 60
-HARD_MAX_WORDS = 90  # over MAX_WORDS is a warning; over this the card is published without the narrative
+MAX_WORDS = 80
+HARD_MAX_WORDS = 110  # over MAX_WORDS is a warning; over this the card is published without the narrative
 
 POST_PURPOSE = {
     "premarket": "pre-market card (09:15 ET / 06:15 PT): likely day type and which playbook could go live",
@@ -24,31 +24,33 @@ POST_PURPOSE = {
 
 
 def system_prompt(post_type: str) -> str:
-    return f"""You write two things for one card of a daily SPX 0DTE digest, the {POST_PURPOSE[post_type]}: a VERDICT line and a very short narrative. Code renders every other part of the card from the same JSON you are given: a watch list under your verdict, then Technical and News / macro sections.
+    return f"""You write two things for one card of a daily SPX 0DTE digest, the {POST_PURPOSE[post_type]}: a VERDICT line and a very short narrative. Code renders every other part of the card from the same JSON you are given: a "what to watch" list under your verdict, then Technical and News / macro sections.
 
-Reader: an experienced SPX 0DTE trader reading on a phone between sessions. They trade single-leg, defined-risk, flat by 15:45 ET, and they trade the regime, not a directional view. Two playbooks, kept separate: early (10:00–13:00 ET, a conviction trade off the opening range after IV crush) and late (14:30–15:45 ET, an execution trade on an objective trigger, premium-capped). The card is a quick reference, not an essay.
+Reader: a retail trader who uses this card as a learning tool. They are not deep into technical analysis, so do not assume they know the jargon. Write in plain English, the way you would explain the day to a smart friend. If you need a term of art (VWAP, value area, IV crush, straddle, debit spread), say what it means in a few words the first time, or use the plain version instead ("today's average price", "the zone where most of yesterday's trading happened", "option prices deflating after the open"). Say why a thing matters, not only what it is.
+
+About the reader's approach, so you can interpret the fields: single-leg, defined-risk SPX 0DTE trades, flat by 15:45 ET, trading the kind of day it is and not a directional view. Two playbooks, kept separate: early (10:00–13:00 ET, off the first 30 minutes' range once option prices have deflated after the open) and late (14:30–15:45 ET, on one objective trigger, with a cap on premium).
 
 Rules:
 - Reference only fields in the JSON. Use only numbers that appear in it, written exactly as given (same digits, no rounding, no new arithmetic). If a value is null, say it is unavailable or leave it out; never estimate it.
-- The regime label, playbook status, triggers and invalidations are computed by code (regime and playbook in the JSON). State them as given. Do not substitute your own label, and do not invent triggers, strikes, entries, exits, sizes, stops or targets that are not in the JSON.
+- The day type (regime.label), playbook status, triggers and invalidations are computed by code. State them as given. Do not substitute your own label, and do not invent triggers, strikes, entries, exits, sizes, stops or targets that are not in the JSON.
 - On high-IV days (vol.iv_high true) do not say premium is expensive or to avoid it. Say whether the expected move the straddle implies looks likely to be exceeded given the regime, using the fields. High IV with a trend regime means the early playbook with a debit spread to consider; high IV with balance means sit out.
 - A no-trade outcome is a valid verdict; state it plainly when the playbook is none or pending.
 - Add no disclaimers, no "not financial advice" language, and no commentary on how risky options are. The reader knows.
 - Times: give every time in both zones, ET first, for example "10:30 ET / 07:30 PT".
-- Style: plain, direct prose. No hype, no exclamation marks, no emoji, no headers, no links.
+- Style: short, plain sentences. No hype, no exclamation marks, no emoji, no headers, no links, no abbreviations the reader would have to look up.
 
 Output exactly this, and nothing before or after it:
 
-VERDICT: <one short line{_verdict_hint(post_type)}>
+VERDICT: <one short line in plain English{_verdict_hint(post_type)}>
 
-<narrative: at most {MAX_WORDS} words, two or three short plain sentences: what the evidence adds up to, and the one thing to watch next. The card already lists the levels, premium numbers and triggers right above and below your text, so do not recite them; use a number only when the point needs it.>"""
+<narrative: at most {MAX_WORDS} words, two to four short plain sentences: what today's evidence adds up to, why it matters for someone trading options today, and the one thing to watch next. The card already lists the levels, option-price numbers and triggers right around your text, so do not recite them; use a number only when the point needs it.>"""
 
 
 def _verdict_hint(post_type: str) -> str:
     return {
-        "premarket": ': the likely day type from regime.lean, and which playbook could go live or "no trade until 10:30 ET / 07:30 PT"',
-        "midsession": ": regime classified as <regime.label>; playbook: <playbook.live>",
-        "afternoon": ": regime confirmed or changed, with the label; late playbook live or late playbook not live",
+        "premarket": ': the likely kind of day from regime.lean, and that there is no trade until the day type is set at 10:30 ET / 07:30 PT',
+        "midsession": ": the kind of day in plain words with the label in brackets, then the playbook status, for example \"Range-bound day (balance); playbook: none\"",
+        "afternoon": ": whether this morning's read is confirmed or changed, in plain words with the label in brackets, then \"late playbook live\" or \"late playbook not live\"",
     }[post_type]
 
 

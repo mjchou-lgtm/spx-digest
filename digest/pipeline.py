@@ -180,7 +180,7 @@ def build_brief(raw: dict, rules: dict | None = None, version: int = 1, generate
                 dq.fallbacks.append("IV crush is an estimate from VIX1D (no 09:35 ET straddle print for today)")
         vol.update(cr)
         if not vol.get("straddle_0935_pts"):
-            dq.manual_inputs.append("09:35 ET straddle print (Generate page, or python -m digest straddle --set PRICE)")
+            dq.manual_inputs.append("the 09:35 ET straddle price, to measure how far option prices have deflated (enter it on the Generate page)")
     pos = _pick(ch, Positioning)
     pos["gex_vendor_url"] = config.GEX_VENDOR_URL or None
     xa = {**compute_cross_asset(m, open_et), **compute_fred(_src(raw, "fred"))}
@@ -236,7 +236,7 @@ def build_brief(raw: dict, rules: dict | None = None, version: int = 1, generate
         dq.notes.append(f"early close: session ends {meta.session_close_pt} PT")
     if chain is None and not closed:
         dq.notes.append("option chain unavailable: straddle, expected move and put/call ratios are null")
-        dq.manual_inputs.append("ATM straddle (no free quote this run; read it from Cboe delayed quotes)")
+        dq.manual_inputs.append("the at-the-money straddle price (no free quote this run; read it from Cboe delayed quotes)")
     dq.sources = source_refs(raw)
     earn_prev = list(ctx.get("prev_session_earnings") or []) or [
         e["name"] for e in events_for(prev, cal_sources, rules) if e["category"] == "MEGACAP_EARNINGS"]

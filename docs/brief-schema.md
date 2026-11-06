@@ -210,6 +210,8 @@ Published at `data/YYYY-MM-DD/<post_type>.brief.json` and, for the latest post o
 | `dev_vah` | float | Developing value area high (pts). |
 | `dev_val` | float | Developing value area low (pts). |
 | `dev_poc_position` | float | Developing POC position in today's range (0 = low, 1 = high). |
+| `cutoff_poc` | float | Most-traded price as of vwap_cutoff_et (or now, before it): the value the balance rule uses, so the label does not drift later. |
+| `cutoff_poc_position` | float | Position of cutoff_poc in the range up to the cutoff (0 = low, 1 = high). |
 | `profile_shape` | enum: D / P / b / elongated | D / P / b / elongated (see concepts/volume-profile). |
 | `accepted_outside_dev_va` | enum: above / below / no | above / below when the last acceptance_closes 5-min closes are all beyond that developing value edge; else no. |
 | `volume_ratio_recent` | float | Recent 5-min SPY volume / the 12:00-13:30 ET average (volume returning); null before 13:30 ET. |

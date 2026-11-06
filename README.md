@@ -1,6 +1,6 @@
 # SPX 0DTE Daily Digest
 
-A static daily digest for SPX 0DTE day trading, published to GitHub Pages. Each post is a quick-reference card: a verdict line, structured fields with source links, a short narrative, and the list of sources fetched. Three cards per trading day:
+A static daily digest for SPX 0DTE day trading, published to GitHub Pages. Each post is a quick-reference card in plain English: a highlighted Verdict section (the verdict, what it means, and the few levels and conditions to watch), then Technical and News / macro sections with source links, and the list of sources fetched. The cards double as a learning tool: terms are replaced or explained where they appear (wording lives in `digest/plain.py`), and every card links to the glossary in `concepts/glossary.md`. Three cards per trading day:
 
 | Post | ET / PT | Card |
 |---|---|---|
@@ -10,7 +10,7 @@ A static daily digest for SPX 0DTE day trading, published to GitHub Pages. Each 
 
 The trading style it serves: single-leg, defined-risk SPX 0DTE, flat by 15:45 ET, trading the regime and not a view. Two playbooks are kept separate: **early** (10:00–13:00 ET, off the opening range after IV crush) and **late** (14:30–15:45 ET, on an objective trigger, premium-capped). Their settings are in `playbook.yaml`.
 
-Every number, the regime label and the playbook status come from code (`digest/indicators`, `digest/regime.py`, `digest/playbook.py`). Claude writes only the VERDICT line and a narrative of at most 150 words from those fields. Free data only: where no free source has a value, the card shows a manual-input field and a link instead of a number. Dealer gamma / GEX is not computed or estimated; `DIGEST_GEX_VENDOR_URL` is a link slot for a vendor page.
+Every number, the regime label and the playbook status come from code (`digest/indicators`, `digest/regime.py`, `digest/playbook.py`). Claude writes only the VERDICT line and a narrative of at most 80 words from those fields, in plain English. Free data only: where no free source has a value, the card shows a manual-input field and a link instead of a number. Dealer gamma / GEX is not computed or estimated; `DIGEST_GEX_VENDOR_URL` is a link slot for a vendor page.
 
 **Read-only by construction.** There are no brokerage clients, order models or execution modules, and the only secrets are `ANTHROPIC_API_KEY` and `FRED_API_KEY`. `tests/test_pipeline.py::test_codebase_has_no_execution_paths` fails if a broker SDK import or order function is added. The journal is a CSV you fill in by hand.
 
@@ -115,10 +115,10 @@ All writers share the concurrency group `digest-writer`, so commits don't race, 
 | `gap_and_go` | \|gap\| > `gap_pct_min` (0.5%) and at `classify_time_et` (10:30) spot is beyond the opening range in the gap direction |
 | `gap_and_fill` | \|gap\| > `gap_pct_min` and at 10:30 spot is back inside the prior value area |
 | `trend_up` / `trend_down` | opens outside the prior value area, at most `trend_max_vwap_crosses` (1) VWAP crosses by `vwap_cutoff_et` (11:00), and at least `one_sided_min_frac` (70%) of 5-minute closes on that side of VWAP |
-| `balance` | opens inside the prior value area, at least `balance_min_vwap_crosses` (2) VWAP crosses by the cutoff, developing POC between `profile_lower` and `profile_upper` of the day's range |
+| `balance` | opens inside the prior value area, at least `balance_min_vwap_crosses` (2) VWAP crosses by the cutoff, most-traded price as of the cutoff between `profile_lower` and `profile_upper` of the range |
 | `undetermined` | before 10:30 ET, when no rule set is fully met, or when the gap rule and the structure rule point in opposite directions |
 
-Gap rules are checked first. The mid-session card runs at 10:45 ET, before the 11:00 VWAP cutoff, so its label is marked provisional; the afternoon card uses the final count. Each brief records `regime.rules_fired` and `regime.rules_failed`, so a label can be audited from `brief.json`. To re-label history after a change, rebuild briefs from the stored raw payloads with `digest.pipeline.build_brief(raw)`; it is pure and needs no network.
+Gap rules are checked first. The mid-session card runs at 10:45 ET, before the 11:00 VWAP cutoff, so its label is marked provisional; the afternoon card uses the final count. Both the VWAP count and the profile check stop at the cutoff, so the label does not drift later in the day. Each brief records `regime.rules_fired` and `regime.rules_failed`, so a label can be audited from `brief.json`. To re-label history after a change, rebuild briefs from the stored raw payloads with `digest.pipeline.build_brief(raw)`; it is pure and needs no network.
 
 Also in this file: `levels.confluence_tolerance_pts` and `round_step_pts` for the level stack, the `premium` thresholds (crush, VIX1D percentile bands, volume-returning ratio, theta table times), and `premium_relevance` for calendar events.
 
@@ -138,7 +138,7 @@ Checked on real data: 2026-11-05 classifies as `trend_down` and 2026-11-06 as `b
 - **Pre-market spot** is ES last minus the ES–SPX basis at the prior cash close. The overnight range uses the same basis.
 - **Fed speakers** come from federalreserve.gov's calendar JSON, best effort. **Earnings** from yfinance are dates only. "Mega-cap earnings last night" comes from the prior session's stored brief when there is one.
 - **Sources list:** every card ends with the URLs fetched for that run and the fetch time. For yfinance calls the link is the Yahoo page behind the data.
-- **Narrative guardrails:** Claude's output must start with `VERDICT:`, the verdict must contain the computed regime label and playbook status, the narrative is capped at 150 words, and nothing in `forbidden_phrases.txt` may appear. Otherwise the card publishes with the computed verdict and no narrative. Numbers that aren't in the fields are logged as warnings in `llm.json`. The model is `claude-sonnet-5-5` at low effort.
+- **Narrative guardrails:** Claude's output must start with `VERDICT:`, the verdict must contain the computed regime label and playbook status, the narrative is capped at 80 words, and nothing in `forbidden_phrases.txt` may appear. Otherwise the card publishes with the computed verdict and no narrative. Numbers that aren't in the fields are logged as warnings in `llm.json`. The model is `claude-sonnet-5-5` at low effort.
 
 ## Notes
 

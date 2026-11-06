@@ -5,6 +5,7 @@ import yaml
 
 from digest import config
 from digest.brief import Brief, Regime
+from digest import plain
 from digest.timefmt import tidy
 
 
@@ -24,48 +25,53 @@ def lean(b: Brief, c: dict) -> str | None:
 def _gap_rule(b: Brief, c: dict, fired: list, failed: list) -> str | None:
     g = b.levels.gap_pct
     if abs(g) <= c["gap_pct_min"]:
-        failed.append(f"gap rules: gap {g:+.2f}% is within ±{c['gap_pct_min']}%")
+        failed.append(f"gap rules: no real gap. The open was {g:+.2f}% from yesterday's close, and a gap day needs more than ±{c['gap_pct_min']}%")
         return None
     up = g > 0
     t, i = c["classify_time_et"], b.intraday
-    fired.append(f"gap {g:+.2f}% (beyond ±{c['gap_pct_min']}%)")
+    fired.append(f"opened with a gap of {g:+.2f}% from yesterday's close (a gap day needs more than ±{c['gap_pct_min']}%)")
+    rng = f"{plain.OR} ({i.or_low}–{i.or_high})"
+    va = f"{plain.PRIOR_VA} ({b.levels.prior_val}–{b.levels.prior_vah})"
     if i.snapshot_vs_or == ("above" if up else "below"):
-        fired.append(f"gap_and_go: {i.snapshot_spot} at {t} ET, {i.snapshot_vs_or} the opening range {i.or_low}–{i.or_high}")
+        fired.append(f"gap_and_go: at {t} ET price ({i.snapshot_spot}) was {i.snapshot_vs_or} {rng}, so the gap kept going")
         return "gap_and_go"
-    failed.append(f"gap_and_go: {i.snapshot_spot} at {t} ET, {i.snapshot_vs_or} the opening range {i.or_low}–{i.or_high}")
+    failed.append(f"gap_and_go: at {t} ET price ({i.snapshot_spot}) was {i.snapshot_vs_or} {rng}, so the gap did not keep going")
     if i.snapshot_vs_prior_va == "inside":
-        fired.append(f"gap_and_fill: {i.snapshot_spot} at {t} ET, back inside prior value {b.levels.prior_val}–{b.levels.prior_vah}")
+        fired.append(f"gap_and_fill: at {t} ET price ({i.snapshot_spot}) was back inside {va}, so the gap filled")
         return "gap_and_fill"
-    failed.append(f"gap_and_fill: {i.snapshot_spot} at {t} ET, {i.snapshot_vs_prior_va} prior value {b.levels.prior_val}–{b.levels.prior_vah}")
+    failed.append(f"gap_and_fill: at {t} ET price ({i.snapshot_spot}) was still {i.snapshot_vs_prior_va} {va}, so the gap had not filled")
     return None
 
 
 def _structure_rule(b: Brief, c: dict, fired: list, failed: list) -> str | None:
     i, lv = b.intraday, b.levels
     n, frac, side = i.vwap_crosses_by_cutoff, i.vwap_above_frac, lv.open_vs_prior_va
-    by = f"by {i.vwap_cutoff_et} ET" if i.vwap_check_final else f"so far (final {i.vwap_cutoff_et} ET)"
-    va = f"prior value {lv.prior_val}–{lv.prior_vah}"
+    by = f"by {i.vwap_cutoff_et} ET" if i.vwap_check_final else f"so far (the count is final at {i.vwap_cutoff_et} ET)"
+    va = f"{plain.PRIOR_VA} ({lv.prior_val}–{lv.prior_vah})"
+    times = f"{n} time{'' if n == 1 else 's'}"
     if side in ("above", "below"):
         respected = n <= c["trend_max_vwap_crosses"]
-        want_frac = frac >= c["one_sided_min_frac"] if side == "above" else frac <= 1 - c["one_sided_min_frac"]
+        need = c["one_sided_min_frac"] if side == "above" else 1 - c["one_sided_min_frac"]
+        want_frac = frac >= need if side == "above" else frac <= need
+        word = "uptrend" if side == "above" else "downtrend"
         msgs = [
-            (True, f"open {lv.session_open} {side} {va}"),
-            (respected, f"VWAP crossed {n}× {by} (needs < {c['trend_max_vwap_crosses'] + 1})"),
-            (want_frac, f"{frac * 100:.0f}% of closes above VWAP (needs "
-                        f"{'≥' if side == 'above' else '≤'} {(c['one_sided_min_frac'] if side == 'above' else 1 - c['one_sided_min_frac']) * 100:.0f}%)"),
+            (True, f"opened at {lv.session_open}, {side} {va}"),
+            (respected, f"price crossed {plain.VWAP} {times} {by}; a trend day crosses it fewer than {c['trend_max_vwap_crosses'] + 1} times"),
+            (want_frac, f"{frac * 100:.0f}% of 5-minute closes were above VWAP; {'an' if side == 'above' else 'a'} {word} needs "
+                        f"{'at least' if side == 'above' else 'at most'} {need * 100:.0f}%"),
         ]
         label = f"trend_{'up' if side == 'above' else 'down'}"
         for met, m in msgs:
             (fired if met else failed).append(f"{label}: {m}")
         return label if respected and want_frac else None
     both = n >= c["balance_min_vwap_crosses"]
-    pos = i.dev_poc_position
+    pos = i.cutoff_poc_position
     sym = pos is not None and c["profile_lower"] <= pos <= c["profile_upper"]
     msgs = [
-        (True, f"open {lv.session_open} inside {va}"),
-        (both, f"VWAP crossed {n}× {by} (needs ≥ {c['balance_min_vwap_crosses']})"),
-        (sym, f"developing POC {i.dev_poc} at {pos * 100:.0f}% of the range (needs "
-              f"{c['profile_lower'] * 100:.0f}–{c['profile_upper'] * 100:.0f}%)" if pos is not None else "developing profile unavailable"),
+        (True, f"opened at {lv.session_open}, inside {va}"),
+        (both, f"price crossed {plain.VWAP} {times} {by}; a range-bound day crosses it at least {c['balance_min_vwap_crosses']} times"),
+        (sym, f"the most-traded price {by} ({i.cutoff_poc}) was {pos * 100:.0f}% of the way up the range; a balanced day has it near the middle "
+              f"({c['profile_lower'] * 100:.0f}–{c['profile_upper'] * 100:.0f}%)" if pos is not None else "today's volume profile is unavailable"),
     ]
     for met, m in msgs:
         (fired if met else failed).append(f"balance: {m}")
@@ -88,19 +94,20 @@ def _holding(b: Brief, label: str) -> tuple[bool | None, str | None]:
     i, lv, s = b.intraday, b.levels, b.levels.spot
     if s is None:
         return None, None
+    rng = f"{plain.OR} ({i.or_low}–{i.or_high})"
     if label in ("trend_up", "trend_down") and i.vwap is not None:
         ok = s > i.vwap if label == "trend_up" else s < i.vwap
-        return ok, f"spot {s} {'above' if s > i.vwap else 'below'} VWAP {i.vwap}"
+        return ok, f"price ({s}) is {'above' if s > i.vwap else 'below'} today's average price (VWAP {i.vwap})"
     if label == "gap_and_go" and i.spot_vs_or:
         want = "above" if lv.gap_pct > 0 else "below"
-        return i.spot_vs_or == want, f"spot {s} {i.spot_vs_or} the opening range {i.or_low}–{i.or_high}"
+        return i.spot_vs_or == want, f"price ({s}) is {i.spot_vs_or} {rng}"
     if label == "gap_and_fill" and i.spot_vs_or:
         against = "above" if lv.gap_pct > 0 else "below"
-        return i.spot_vs_or != against, f"spot {s} {i.spot_vs_or} the opening range {i.or_low}–{i.or_high}"
+        return i.spot_vs_or != against, f"price ({s}) is {i.spot_vs_or} {rng}"
     if label == "balance" and i.accepted_outside_dev_va:
         ok = i.accepted_outside_dev_va == "no"
-        return ok, (f"no acceptance outside developing value {i.dev_val}–{i.dev_vah}" if ok
-                    else f"accepted {i.accepted_outside_dev_va} developing value {i.dev_val}–{i.dev_vah}")
+        va = f"{plain.DEV_VA} ({i.dev_val}–{i.dev_vah})"
+        return ok, (f"price has not broken out of {va}" if ok else f"price has broken out {i.accepted_outside_dev_va} {va}")
     return None, None
 
 
@@ -113,7 +120,7 @@ def classify(b: Brief, rules: dict | None = None, prior_label: str | None = None
     ln = lean(b, c)
     i, lv = b.intraday, b.levels
     if b.meta.post_type == "premarket" or i.snapshot_spot is None:
-        return Regime(label="undetermined", lean=ln, rules_fired=[f"before the {t} ET classification"])
+        return Regime(label="undetermined", lean=ln, rules_fired=[f"before the {t} ET classification: the day type is read once the first hour has played out"])
     need = {"levels.gap_pct": lv.gap_pct, "levels.prior_vah": lv.prior_vah, "levels.prior_val": lv.prior_val,
             "levels.session_open": lv.session_open, "intraday.or_high": i.or_high,
             "intraday.vwap_crosses_by_cutoff": i.vwap_crosses_by_cutoff, "intraday.vwap_above_frac": i.vwap_above_frac}
@@ -131,9 +138,9 @@ def classify(b: Brief, rules: dict | None = None, prior_label: str | None = None
         conflicts.append(f"gap_and_go ({direction(b, 'gap_and_go')}) conflicts with {struct_label}")
         label = "undetermined"
     if label == "undetermined" and not conflicts:
-        fired.append("no rule set is fully met")
+        fired.append("none of the day types passes all of its checks")
     if not i.vwap_check_final:
-        fired.append(f"provisional until {i.vwap_cutoff_et} ET (VWAP count)")
+        fired.append(f"provisional until {i.vwap_cutoff_et} ET, when the VWAP count is final")
 
     holding, note = (None, None) if label == "undetermined" else _holding(b, label)
     if prior_label is None or prior_label == "undetermined":

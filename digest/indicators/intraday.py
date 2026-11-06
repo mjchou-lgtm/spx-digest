@@ -130,6 +130,10 @@ def compute_structure(m: Market, sess: pd.DataFrame, session_open: datetime, pri
             hi, lo, _ = opening_range(sess, session_open, m.as_of)
             out.update(snapshot_time_et=p["classify_time_et"], snapshot_spot=s, snapshot_vs_or=spot_vs_range(s, hi, lo),
                        snapshot_vs_prior_va=side_of(s, prior_vah, prior_val))
+    # The balance rule reads the profile as of the cutoff, so the label is fixed once the cutoff has passed.
+    cut_prof, _ = session_profile(pre if len(pre) else sess, spy_sess)
+    if cut_prof:
+        out.update(cutoff_poc=cut_prof["poc"], cutoff_poc_position=cut_prof["poc_position"])
     prof, _ = session_profile(sess, spy_sess)
     if prof:
         out.update(dev_poc=prof["poc"], dev_vah=prof["vah"], dev_val=prof["val"], dev_poc_position=prof["poc_position"],
