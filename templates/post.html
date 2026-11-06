@@ -4,9 +4,9 @@
 <p class="crumbs"><a href="{{ rel }}index.html">Today</a> / <a href="{{ rel }}archive/index.html">{{ p.date }}</a> / {{ p.post_type }}</p>
 <h1>{{ p.date }} · {{ p.post_type }}</h1>
 <p>{{ badge(p.label, p.fm.confidence) }}</p>
-<p class="muted">Generated {{ p.time_pt }} PT · data as of {{ p.fm.data_as_of or 'n/a' }} · schema {{ p.fm.schema_version }}{% if p.fm.model %} · {{ p.fm.model }}{% endif %}</p>
+<p class="muted">Generated {{ p.time_et }} ET / {{ p.time_pt }} PT · data as of {{ p.fm.data_as_of or 'n/a' }} · schema {{ p.fm.schema_version }}{% if p.fm.model %} · {{ p.fm.model }}{% endif %}</p>
 {% if versions|length > 1 %}<p class="muted">Version {{ p.version }} of {{ versions|length }}{% if not is_latest %} — <a href="{{ rel }}{{ latest_url }}">see latest</a>{% endif %}</p>{% endif %}
-<article class="narrative">{{ body|safe }}</article>
+<article class="narrative card">{{ body|safe }}</article>
 
 <details class="brief">
 <summary>Indicator brief</summary>

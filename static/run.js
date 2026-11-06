@@ -111,6 +111,28 @@
     });
   });
 
+  var sform = document.getElementById("straddle-form");
+  if (sform) {
+    sform.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var price = document.getElementById("straddle-price").value.trim();
+      var page = "https://github.com/" + REPO + "/actions/workflows/straddle.yml";
+      if (!price || !(parseFloat(price) > 0)) { show("Enter the straddle price in SPX points."); return; }
+      if (!getToken()) {
+        show("No token saved, so this opens GitHub: press Run workflow and enter " + esc(price) + " as the price · " + link(page, "open the straddle workflow"));
+        window.open(page, "_blank", "noopener");
+        return;
+      }
+      show("Saving the 09:35 ET print " + esc(price) + "…");
+      gh("/workflows/straddle.yml/dispatches", { method: "POST", body: JSON.stringify({ ref: "main", inputs: { price: price } }) })
+        .then(async function (res) {
+          if (!res.ok) throw new Error(await errText(res));
+          show("Print " + esc(price) + " sent. It is committed in about a minute and used by the next post you generate · " + link(page, "check the run"));
+        })
+        .catch(function (e) { show("Could not save the print: " + esc(e.message) + " · " + link(page, "enter it on GitHub instead")); });
+    });
+  }
+
   var form = document.getElementById("gen-token-form");
   if (form) {
     form.addEventListener("submit", function (ev) {

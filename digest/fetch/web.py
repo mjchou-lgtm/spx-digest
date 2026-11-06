@@ -142,3 +142,21 @@ def fetch_treasury_upcoming() -> FetchResult:
 
 def today_utc() -> date:
     return datetime.now(timezone.utc).date()
+
+
+def fetch_ff_calendar() -> FetchResult:
+    """ForexFactory's public weekly calendar feed: USD events with impact and ET time."""
+    def run():
+        rows = http_get(config.FF_CALENDAR_URL).json()
+        out = []
+        for r in rows:
+            if r.get("country") != "USD" or r.get("impact") not in ("High", "Medium"):
+                continue
+            try:
+                ts = datetime.fromisoformat(r["date"]).astimezone(config.ET)
+            except (KeyError, ValueError):
+                continue
+            out.append({"date": ts.date().isoformat(), "time_et": ts.strftime("%H:%M"), "title": r.get("title", "").strip(), "impact": r["impact"]})
+        return out
+
+    return fetch_with_retry("forexfactory:calendar", run, retries=1, meta={"url": config.FF_CALENDAR_URL})

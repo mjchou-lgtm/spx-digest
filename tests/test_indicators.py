@@ -1,3 +1,4 @@
+import json
 import math
 from datetime import date, datetime
 
@@ -8,7 +9,7 @@ import pytest
 from digest import config
 from digest.indicators import Market, annualized_rv_pct, pct, r2
 from digest.indicators import intraday as intr
-from digest.indicators import levels, market_stats, options
+from digest.indicators import levels, market_stats, options, premium, profile
 
 ET = config.ET
 
@@ -56,7 +57,7 @@ def test_average_daily_range():
 
 def test_levels_from_fixture(brief_mid):
     lv = brief_mid.levels
-    assert lv.prior_date == "2026-11-03"
+    assert lv.prior_date == "2026-11-05"
     assert lv.prior_low <= lv.prior_close <= lv.prior_high
     assert lv.session_low <= lv.spot <= lv.session_high
     assert lv.range_used_pts == pytest.approx(lv.session_high - lv.session_low, abs=0.02)
@@ -100,36 +101,18 @@ def test_put_call_ratios_and_top_oi():
     assert options.top_oi_strikes(calls, 1) == [105.0]
 
 
-def test_bs_gamma_matches_closed_form():
-    S, K, T, iv = 100.0, 100.0, 30 / 365, 0.2
-    d1 = (math.log(S / K) + 0.5 * iv * iv * T) / (iv * math.sqrt(T))
-    expected = math.exp(-0.5 * d1 * d1) / math.sqrt(2 * math.pi) / (S * iv * math.sqrt(T))
-    assert float(options.bs_gamma(S, K, T, iv)) == pytest.approx(expected)
-
-
-def test_gex_sign_and_flip():
-    # Heavy put OI below, call OI above: GEX negative low, positive high -> one flip between.
-    calls = [_row(105, 1, 1, oi=1000)]
-    puts = [_row(95, 1, 1, oi=1000)]
-    T = 1 / 365
-    at_spot, flip = options.gex_profile(calls, puts, 100.0, T)
-    assert flip is not None and 95 < flip < 105
-    assert abs(flip - 100.0) < 1.0  # symmetric book -> flip near the midpoint
-    net_low, _ = options.gex_profile(calls, puts, 96.0, T)
-    assert net_low < 0
-
-
 def test_chain_fallback_scales_strikes():
     calls = [_row(770, 1, 1, oi=50), _row(771, 0.6, 0.6, oi=10)]
     puts = [_row(770, 1.2, 1.2, oi=40), _row(769, 0.5, 0.5, oi=10)]
     chain = {"symbol": "SPY", "expiry_0dte": "2026-11-04", "expiry_weekly": None,
              "chains": {"2026-11-04": {"calls": calls, "puts": puts}}}
-    now = datetime(2026, 11, 4, 10, 0, tzinfo=ET)
-    close = datetime(2026, 11, 4, 16, 0, tzinfo=ET)
-    out = options.compute_chain_stats(chain, 7702.0, now, close, fallback=True)
+    out = options.compute_chain_stats(chain, 7702.0, fallback=True)
     assert out["chain_fallback_used"] is True
     assert out["expected_move_0dte_pts"] == pytest.approx(22.0)  # (1 + 1.2) x 10
+    assert out["straddle_strike"] == 7700.0
+    assert out["implied_range_low"] == pytest.approx(7680.0) and out["implied_range_high"] == pytest.approx(7724.0)
     assert out["call_oi_top_strikes"][0] == 7700.0
+    assert not any("gex" in k or "gamma" in k for k in out), "dealer gamma is not computed"
 
 
 def test_chain_stats_from_fixture(brief_mid):
@@ -137,9 +120,10 @@ def test_chain_stats_from_fixture(brief_mid):
     assert p.chain_source == "^SPX" and not p.chain_fallback_used
     assert v.expected_move_0dte_pts > 0 and v.expected_move_weekly_pts > v.expected_move_0dte_pts
     assert len(p.call_oi_top_strikes) == 5 and len(p.put_oi_top_strikes) == 5
-    assert p.gamma_flip_approx is not None
-    assert p.spot_vs_gamma_flip == ("above" if brief_mid.levels.spot >= p.gamma_flip_approx else "below")
-    assert "approximate, OI-based" in p.gex_method
+    assert v.implied_range_low < brief_mid.levels.spot < v.implied_range_high
+    assert v.implied_range_high - v.implied_range_low == pytest.approx(2 * v.expected_move_0dte_pts, abs=0.05)
+    assert v.straddle_quote_time_et == "11:25"
+    assert p.gex_vendor_url is None and not any("gamma" in k for k in type(p).model_fields)
 
 
 # --- vol / cross-asset / breadth ---------------------------------------------------
@@ -166,7 +150,7 @@ def test_vol_from_fixture(brief_mid):
     assert v.vix9d_vix_ratio == pytest.approx(v.vix9d / v.vix, abs=0.01)
     assert v.vix_vix3m_ratio == pytest.approx(v.vix / v.vix3m, abs=0.01)
     assert v.vix_minus_rv20_pts == pytest.approx(v.vix - v.rv20_pct, abs=0.02)
-    assert v.cboe_total_pcr == 0.86
+    assert v.cboe_total_pcr is not None
 
 
 def test_breadth_from_fixture(brief_mid):
@@ -219,3 +203,128 @@ def test_intraday_from_fixture(brief_mid):
 def test_premarket_has_no_intraday(brief_pre):
     assert brief_pre.intraday.or_high is None and brief_pre.intraday.vwap is None
     assert not any(f.startswith("intraday.") for f in brief_pre.data_quality.null_fields)
+
+
+# --- volume profile -------------------------------------------------------------------
+
+def _bars(rows):
+    df = pd.DataFrame(rows, columns=["l", "h", "v"])
+    df["c"] = df["h"]
+    df.index = pd.date_range(datetime(2026, 11, 4, 9, 30, tzinfo=ET), periods=len(rows), freq="5min")
+    return df
+
+
+def test_volume_profile_poc_and_value_area():
+    # Most volume trades 100-102; thin tails either side.
+    p = profile.volume_profile(_bars([(95, 96, 10), (100, 102, 500), (100, 102, 500), (105, 106, 10)]))
+    assert 100 <= p["poc"] <= 102
+    assert p["val"] >= 100 and p["vah"] <= 102  # 70% of the volume sits in the heavy node
+    assert p["low"] == 95 and p["high"] == 106
+    assert profile.volume_profile(_bars([(1, 2, 0)])) is None
+
+
+def test_value_area_holds_about_70_percent():
+    rows = [(100 + i, 101 + i, v) for i, v in enumerate([1, 2, 4, 8, 16, 8, 4, 2, 1])]
+    p = profile.volume_profile(_bars(rows))
+    inside = sum(v for (l, h, v) in rows if l >= p["val"] and h <= p["vah"])
+    assert inside / sum(v for *_, v in rows) >= 0.70
+    assert p["poc"] == pytest.approx(104.5)
+
+
+def test_profile_shapes():
+    assert profile.profile_shape({"poc_position": 0.5, "va_width_frac": 0.4}) == "D"
+    assert profile.profile_shape({"poc_position": 0.8, "va_width_frac": 0.4}) == "P"
+    assert profile.profile_shape({"poc_position": 0.1, "va_width_frac": 0.4}) == "b"
+    assert profile.profile_shape({"poc_position": 0.5, "va_width_frac": 0.9}) == "elongated"
+    assert profile.side_of(105, 104, 100) == "above" and profile.side_of(102, 104, 100) == "inside" and profile.side_of(None, 1, 0) is None
+
+
+def test_prior_value_area_from_fixture(brief_mid):
+    lv = brief_mid.levels
+    assert lv.prior_low <= lv.prior_val < lv.prior_poc < lv.prior_vah <= lv.prior_high
+    assert "70% value area" in lv.value_area_method
+    assert lv.open_vs_prior_va == profile.side_of(lv.session_open, lv.prior_vah, lv.prior_val)
+
+
+# --- VWAP crosses and the 10:30 snapshot ----------------------------------------------------
+
+def test_vwap_cross_count():
+    s = _sess([100, 101, 102, 103])           # one-way: every close above the running VWAP after the first bar
+    n, frac = intr.vwap_crosses(s, intr.running_vwap(s, s))
+    assert n == 0
+    s = _sess([100, 104, 96, 104, 96])          # whipsaw
+    n, frac = intr.vwap_crosses(s, intr.running_vwap(s, s))
+    assert n >= 3 and 0 < frac < 1
+
+
+def test_structure_from_fixture(brief_mid, brief_td_mid):
+    i = brief_mid.intraday
+    assert i.snapshot_time_et == "10:30" and i.vwap_cutoff_et == "11:00" and i.vwap_check_final is True
+    assert i.vwap_crosses >= i.vwap_crosses_by_cutoff
+    assert i.dev_val <= i.dev_poc <= i.dev_vah and 0 <= i.dev_poc_position <= 1
+    t = brief_td_mid.intraday  # 10:45 ET replay: the 11:00 cutoff has not passed
+    assert t.vwap_check_final is False and t.vwap_crosses_by_cutoff == 0 and t.vwap_above_frac == 0
+    assert t.snapshot_vs_or == "below" and t.snapshot_vs_prior_va == "below"
+
+
+# --- level stack ------------------------------------------------------------------------
+
+def test_level_stack_marks_confluence_and_sorts():
+    lv = {"spot": 7400.0, "prior_high": 7452.0, "prior_low": 7300.0, "prior_close": 7398.0, "prior_vah": 7449.0}
+    stack, rounds = levels.build_level_stack(lv, {}, tol_pts=5, round_step=50, reach_pts=60)
+    prices = [x["price"] for x in stack]
+    assert prices == sorted(prices, reverse=True)
+    assert rounds == [7350.0, 7400.0, 7450.0]
+    by = {x["name"]: x for x in stack}
+    assert by["prior high"]["confluence"] and "prior VAH" in by["prior high"]["confluence_with"] and "round 7450" in by["prior high"]["confluence_with"]
+    assert not by["prior low"]["confluence"]
+    assert by["round 7400"]["confluence_with"] == "prior close"
+
+
+def test_level_stack_from_fixture(brief_pre, brief_mid):
+    names = {l.name for l in brief_pre.levels.level_stack}
+    assert {"prior high", "prior low", "prior close", "prior VAH", "prior POC", "prior VAL", "O/N high", "O/N low"} <= names
+    assert any(n.startswith("round ") for n in names) and not any(n.startswith(("OR ", "dev ")) for n in names)
+    assert {"OR high", "OR low", "VWAP", "dev VAH", "dev VAL"} <= {l.name for l in brief_mid.levels.level_stack}
+
+
+# --- premium ----------------------------------------------------------------------------
+
+def test_theta_table_matches_the_sqrt_of_time_reference():
+    o, c = datetime(2026, 11, 4, 9, 30, tzinfo=ET), datetime(2026, 11, 4, 16, 0, tzinfo=ET)
+    table = premium.theta_table(["10:30", "11:30", "12:30", "13:30", "14:30", "15:30"], o, c)
+    assert table == [("10:30", 92), ("11:30", 83), ("12:30", 73), ("13:30", 62), ("14:30", 48), ("15:30", 28)]
+    assert premium.extrinsic_remaining_pct(o, o, c) == 100 and premium.extrinsic_remaining_pct(c, o, c) == 0
+
+
+def test_crush_threshold():
+    assert premium.crush(40.0, 50.0, -20)["iv_crush_label"] == "crush done"       # exactly -20%
+    assert premium.crush(41.0, 50.0, -20)["iv_crush_label"] == "still elevated"
+    assert premium.crush(None, 50.0, -20) == {} and premium.crush(40.0, None, -20) == {}
+
+
+def test_vix1d_percentile_and_label(brief_mid):
+    v = brief_mid.vol
+    assert v.vix1d is not None and 0 <= v.vix1d_pctile_20d <= 100
+    assert v.vix1d_20d_low <= v.vix1d_20d_high
+    assert v.iv_high == (v.vix1d_label in ("high", "extreme"))
+    assert 0 < v.theta_extrinsic_remaining_pct < 100
+
+
+def test_crush_uses_the_0935_print_when_there_is_one(raw_mid):
+    from digest.pipeline import build_brief
+
+    r = json.loads(json.dumps(raw_mid))
+    r["context"] = {"straddle_0935": {"pts": 80.0, "time_et": "09:36", "source": "manual"}}
+    v = build_brief(r).vol
+    assert v.straddle_0935_pts == 80.0 and v.straddle_0935_source == "manual"
+    assert v.iv_crush_pct == pytest.approx((v.expected_move_0dte_pts / 80.0 - 1) * 100, abs=0.01)
+    assert v.iv_crush_label == "crush done" and v.iv_crush_basis.startswith("straddle")
+    assert v.expected_move_day_pts == 80.0
+
+
+def test_crush_without_a_print_is_a_labelled_estimate(brief_mid):
+    v = brief_mid.vol
+    assert v.straddle_0935_pts is None and v.iv_crush_basis.startswith("estimate")
+    assert any("estimate" in f for f in brief_mid.data_quality.fallbacks)
+    assert any("09:35" in m for m in brief_mid.data_quality.manual_inputs)

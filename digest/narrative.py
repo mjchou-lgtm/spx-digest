@@ -1,8 +1,8 @@
-"""Claude-written narrative from the structured brief. One API call per post.
+"""Claude writes the VERDICT line and a short narrative from the structured fields. One API call per post.
 
-The model only writes prose. Every number and the regime label come from
-brief.json; the response is validated (template, regime header, forbidden
-phrases) and any failure falls back to the brief rendered as a table.
+Every number, the regime label and the playbook status come from brief.json. The response
+is validated (verdict phrases, length, forbidden phrases, numbers); on any failure the card
+is published with the computed verdict and no narrative.
 """
 from __future__ import annotations
 
@@ -13,65 +13,54 @@ from dataclasses import dataclass, field
 from digest import config
 from digest.brief import Brief
 
-SECTIONS_BASE = ["## Regime:", "## What matters today", "## Levels to watch", "## What would change the read"]
-
-
-def template_for(post_type: str) -> str:
-    parts = []
-    if post_type in ("midsession", "afternoon"):
-        parts.append("## Since the last post\n2–4 bullets: what resolved versus the prior post's read.")
-    parts.append("## Regime: <LABEL> (<confidence>)\nOne paragraph: what kind of day this looks like and why.")
-    parts.append("## What matters today\n3–6 bullets: catalysts with times, vol structure, positioning context.")
-    parts.append("## Levels to watch\nBullets: key levels from the brief with the reason each matters.")
-    parts.append("## What would change the read\n2–3 bullets: what would flip the regime label.")
-    if post_type == "afternoon":
-        parts.append("## Into the close\n2–4 bullets: pin vs expansion, charm/gamma considerations into the close, what to carry into tomorrow's premarket.")
-    return "\n\n".join(parts)
-
-
-def required_headers(post_type: str) -> list[str]:
-    h = list(SECTIONS_BASE)
-    if post_type in ("midsession", "afternoon"):
-        h.insert(0, "## Since the last post")
-    if post_type == "afternoon":
-        h.append("## Into the close")
-    return h
-
+MAX_WORDS = 150
+HARD_MAX_WORDS = 190  # over MAX_WORDS is a warning; over this the card is published without the narrative
 
 POST_PURPOSE = {
-    "premarket": "pre-market primer (05:45 PT): overnight action, today's calendar, and the regime going into the open",
-    "midsession": "mid-session update (09:30 PT): how the open resolved and whether the regime is confirmed or changing",
-    "afternoon": "afternoon update (last ~75 minutes of the session): pin vs expansion behaviour, charm/gamma into the close, what carried",
+    "premarket": "pre-market card (09:15 ET / 06:15 PT): likely day type and which playbook could go live",
+    "midsession": "mid-session card (10:45 ET / 07:45 PT): the classified regime and whether the early playbook is live",
+    "afternoon": "afternoon card (14:15 ET / 11:15 PT): whether the regime held and whether the late playbook is live",
 }
 
 
 def system_prompt(post_type: str) -> str:
-    return f"""You write one section of a daily SPX market digest: the {POST_PURPOSE[post_type]}.
+    return f"""You write two things for one card of a daily SPX 0DTE digest, the {POST_PURPOSE[post_type]}: a VERDICT line and a short narrative. Code renders every other field of the card from the same JSON you are given.
 
-Reader: an experienced SPX 0DTE options trader who reads this on a phone before and during the session. They want a macro read on the session — regime, catalysts that could move premiums, whether the day looks trending, choppy, or not worth engaging — not a signal service. Entries, exits, risk and sizing are entirely their call.
+Reader: an experienced SPX 0DTE trader reading on a phone between sessions. They trade single-leg, defined-risk, flat by 15:45 ET, and they trade the regime, not a directional view. Two playbooks, kept separate: early (10:00–13:00 ET, a conviction trade off the opening range after IV crush) and late (14:30–15:45 ET, an execution trade on an objective trigger, premium-capped). The card is a quick reference, not an essay.
 
-Content rules:
-- Do not comment on risk, risk management, position sizing, or how risky 0DTE or single-leg options are. Add no disclaimers and no "not financial advice" language. The reader knows.
-- Do not make trade calls: no specific entries, exits, strikes to buy or sell, stops or targets. Describe regime, levels, catalysts, and what to watch for.
-- Use only numbers that appear in the brief, written exactly as given (same digits, no rounding, no new arithmetic such as differences or percentages you computed). If a value is null, say it is unavailable or leave it out; never estimate it.
-- State the regime label and confidence exactly as given in brief.regime (for example "## Regime: RANGE (medium)"). You may explain it using brief.regime.rules_fired; do not substitute your own label.
-- The gamma figures are an approximate, OI-based estimate, not dealer positioning; if you mention them, call them approximate.
-- Times: catalyst times in the brief are ET; the reader is in Pacific time. Give both when you mention a time.
-- Style: plain, direct prose. No hype, no exclamation marks, no emoji. No headers other than the template's. Bullets are short.
-- Length: at most about 350 words in total (the whole post must fit in roughly 600 tokens).
+Rules:
+- Reference only fields in the JSON. Use only numbers that appear in it, written exactly as given (same digits, no rounding, no new arithmetic). If a value is null, say it is unavailable or leave it out; never estimate it.
+- The regime label, playbook status, triggers and invalidations are computed by code (regime and playbook in the JSON). State them as given. Do not substitute your own label, and do not invent triggers, strikes, entries, exits, sizes, stops or targets that are not in the JSON.
+- On high-IV days (vol.iv_high true) do not say premium is expensive or to avoid it. Say whether the expected move the straddle implies looks likely to be exceeded given the regime, using the fields. High IV with a trend regime means the early playbook with a debit spread to consider; high IV with balance means sit out.
+- A no-trade outcome is a valid verdict; state it plainly when the playbook is none or pending.
+- Add no disclaimers, no "not financial advice" language, and no commentary on how risky options are. The reader knows.
+- Times: give every time in both zones, ET first, for example "10:30 ET / 07:30 PT".
+- Style: plain, direct prose. No hype, no exclamation marks, no emoji, no headers, no links.
 
-Output exactly this Markdown template, filling in each section, and nothing before or after it:
+Output exactly this, and nothing before or after it:
 
-{template_for(post_type)}"""
+VERDICT: <one line{_verdict_hint(post_type)}>
+
+<narrative: at most {MAX_WORDS} words, one short paragraph or up to four short bullets, saying what the evidence in the fields adds up to and what to watch next>"""
 
 
-def user_message(brief: Brief, prior_post: str | None, prior_label: str | None) -> str:
-    parts = ["<brief>", brief.model_dump_json(indent=1, exclude={"data_quality": {"null_fields"}}), "</brief>"]
-    if brief.data_quality.null_fields or brief.data_quality.fallbacks:
-        parts += ["<data_gaps>", json.dumps({"null_fields": brief.data_quality.null_fields, "fallbacks": brief.data_quality.fallbacks}), "</data_gaps>"]
-    if prior_post:
-        parts += [f"<previous_post label=\"{prior_label}\">", prior_post.strip(), "</previous_post>"]
-    parts.append("Write the post now, following the template.")
+def _verdict_hint(post_type: str) -> str:
+    return {
+        "premarket": ': the likely day type from regime.lean, and which playbook could go live or "no trade until 10:30 ET / 07:30 PT"',
+        "midsession": ": regime classified as <regime.label>; playbook: <playbook.live>",
+        "afternoon": ": regime confirmed or changed, with the label; late playbook live or late playbook not live",
+    }[post_type]
+
+
+def user_message(brief: Brief, prior_verdict: str | None = None) -> str:
+    from digest.render import verdict_requirements
+
+    payload = brief.model_dump_json(indent=1, exclude={"data_quality": {"null_fields", "sources"}})
+    parts = ["<fields>", payload, "</fields>"]
+    if prior_verdict:
+        parts += ["<previous_verdict>", prior_verdict.strip(), "</previous_verdict>"]
+    req = ", ".join(f'"{r}"' for r in verdict_requirements(brief))
+    parts.append(f"Write the VERDICT line and the narrative now. The VERDICT line must contain these exact phrases: {req}.")
     return "\n".join(parts)
 
 
@@ -80,6 +69,7 @@ class NarrativeResult:
     ok: bool
     text: str | None
     error: str | None = None
+    verdict: str | None = None
     warnings: list[str] = field(default_factory=list)
     request: dict | None = None
     response: dict | None = None
@@ -137,7 +127,7 @@ def _pt_times(brief: Brief) -> set[str]:
         h, m = t.split(":")
         h_pt = (int(h) - 3) % 24
         out |= {f"{h_pt}", f"{h_pt:02d}", m, f"{h_pt % 12 or 12}"}
-    return out
+    return out | {"00", "15", "30", "35", "45"}  # minutes of the fixed session times
 
 
 def unverified_numbers(text: str, brief: Brief) -> list[str]:
@@ -161,30 +151,48 @@ def unverified_numbers(text: str, brief: Brief) -> list[str]:
     return sorted(set(bad))
 
 
+def split_output(text: str) -> tuple[str | None, str]:
+    """(verdict line without the label, narrative)."""
+    lines = text.strip().splitlines()
+    if not lines or not lines[0].upper().startswith("VERDICT:"):
+        return None, text.strip()
+    return lines[0].split(":", 1)[1].strip(), "\n".join(lines[1:]).strip()
+
+
 def validate(text: str, brief: Brief) -> tuple[list[str], list[str]]:
-    """(errors, warnings). Errors force the fallback rendering."""
+    """(errors, warnings). Errors drop Claude's text; the card is published with the computed verdict."""
+    from digest.render import verdict_requirements
+
     errors, warnings = [], []
-    for h in required_headers(brief.meta.post_type):
-        if h not in text:
-            errors.append(f"missing section '{h}'")
-    want = f"## Regime: {brief.regime.label} ({brief.regime.confidence})"
-    if want not in text:
-        errors.append(f"regime header must be '{want}'")
+    verdict, body = split_output(text)
+    if verdict is None:
+        errors.append("output must start with 'VERDICT:'")
+    else:
+        for req in verdict_requirements(brief):
+            if req not in verdict:
+                errors.append(f"verdict must contain '{req}'")
+    if re.search(r"^#{1,6} ", body, re.M):
+        errors.append("narrative must not contain headers")
+    words = len(body.split())
+    if words > HARD_MAX_WORDS:
+        errors.append(f"narrative is {words} words (limit {MAX_WORDS})")
+    elif words > MAX_WORDS:
+        warnings.append(f"narrative is {words} words (limit {MAX_WORDS})")
     hits = find_forbidden(text)
     if hits:
         errors.append(f"forbidden phrases: {hits}")
     un = unverified_numbers(text, brief)
     if un:
-        warnings.append(f"numbers not found in brief: {un}")
+        warnings.append(f"numbers not found in fields: {un}")
     return errors, warnings
 
 
-def generate(brief: Brief, prior_post: str | None, prior_label: str | None) -> NarrativeResult:
+def generate(brief: Brief, prior_verdict: str | None = None) -> NarrativeResult:
     import anthropic
 
     key = config.anthropic_key()
     sys_p = system_prompt(brief.meta.post_type)
-    usr = user_message(brief, prior_post, prior_label)
+    usr = user_message(brief, prior_verdict)
     request = {
         "model": config.CLAUDE_MODEL,
         "max_tokens": config.CLAUDE_MAX_TOKENS,
@@ -213,4 +221,5 @@ def generate(brief: Brief, prior_post: str | None, prior_label: str | None) -> N
     errors, warnings = validate(text, brief)
     if errors:
         return NarrativeResult(ok=False, text=text, error="; ".join(errors), warnings=warnings, request=request, response=resp_d)
-    return NarrativeResult(ok=True, text=text, warnings=warnings, request=request, response=resp_d)
+    verdict, body = split_output(text)
+    return NarrativeResult(ok=True, text=body, verdict=verdict, warnings=warnings, request=request, response=resp_d)

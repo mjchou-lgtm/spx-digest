@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}{{ c.title }} · {{ site_title }}{% endblock %}
+{% block main %}
+<p class="crumbs"><a href="{{ rel }}concepts/index.html">Concepts</a> / {{ c.title }}</p>
+<article class="narrative concept">{{ c.html|safe }}</article>
+<p class="muted">{% for o in concepts %}{% if o.slug != c.slug %}<a href="{{ rel }}concepts/{{ o.slug }}.html">{{ o.title }}</a>{% if not loop.last %} · {% endif %}{% endif %}{% endfor %}</p>
+{% endblock %}

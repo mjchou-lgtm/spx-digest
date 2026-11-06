@@ -27,8 +27,8 @@ def _latest_or_prior(m: Market, t: str, session_open):
 
 def compute_vol(m: Market, session_open: datetime) -> dict:
     out: dict = {}
-    vals = {t: _latest_or_prior(m, t, session_open) for t in ["^VIX", "^VIX9D", "^VIX3M", "^VIX6M", "^VVIX", "^SKEW"]}
-    out.update(vix=vals["^VIX"], vix9d=vals["^VIX9D"], vix3m=vals["^VIX3M"], vix6m=vals["^VIX6M"], vvix=vals["^VVIX"], skew=vals["^SKEW"])
+    vals = {t: _latest_or_prior(m, t, session_open) for t in ["^VIX", "^VIX1D", "^VIX9D", "^VIX3M", "^VIX6M", "^VVIX", "^SKEW"]}
+    out.update(vix=vals["^VIX"], vix1d=vals["^VIX1D"], vix9d=vals["^VIX9D"], vix3m=vals["^VIX3M"], vix6m=vals["^VIX6M"], vvix=vals["^VVIX"], skew=vals["^SKEW"])
     vix_prior = m.prior_close("^VIX")
     vix_now = m.latest("^VIX", session_open)
     if vix_now is not None and vix_prior:

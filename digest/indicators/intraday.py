@@ -44,6 +44,33 @@ def vwap_with_proxy_volume(spx: pd.DataFrame, vol_proxy: pd.DataFrame | None):
     return float(tp.mean()), "SPX typical price, equal-weighted (no volume proxy)"
 
 
+def running_vwap(spx: pd.DataFrame, vol_proxy: pd.DataFrame | None) -> pd.Series:
+    """Cumulative session VWAP at each bar (same weighting as vwap_with_proxy_volume)."""
+    tp = (spx["h"] + spx["l"] + spx["c"]) / 3.0
+    v = vol_proxy["v"].reindex(spx.index).fillna(0.0) if vol_proxy is not None and len(vol_proxy) else None
+    if v is None or v.sum() <= 0:
+        return tp.expanding().mean()
+    cum_v = v.cumsum()
+    return ((tp * v).cumsum() / cum_v.where(cum_v > 0)).fillna(tp.expanding().mean())
+
+
+def vwap_crosses(sess: pd.DataFrame, vwap: pd.Series, min_pts: float = 0.0):
+    """(crosses, fraction of closes above VWAP). A cross is a 5-min close moving from one side
+    of the running VWAP to the other; closes within min_pts of VWAP do not change the side."""
+    d = (sess["c"] - vwap).to_numpy(float)
+    side, crosses, above, n = 0, 0, 0, 0
+    for x in d:
+        if np.isnan(x):
+            continue
+        n += 1
+        above += x > 0
+        s = 1 if x > min_pts else -1 if x < -min_pts else 0
+        if s and side and s != side:
+            crosses += 1
+        side = s or side
+    return crosses, (above / n if n else None)
+
+
 def rv_today_pct(sess: pd.DataFrame):
     c = sess["c"].to_numpy(float)
     if len(c) < 4:
@@ -71,6 +98,51 @@ def retested(sess: pd.DataFrame, side: str, tol_pts: float, min_gap_bars: int = 
         if j - first >= min_gap_bars and away[first + 1 : j].any():
             return True
     return False
+
+
+def _at(session_open: datetime, hhmm: str) -> datetime:
+    h, mi = map(int, hhmm.split(":"))
+    return session_open.replace(hour=h, minute=mi, second=0, microsecond=0)
+
+
+def compute_structure(m: Market, sess: pd.DataFrame, session_open: datetime, prior_vah, prior_val, p: dict) -> dict:
+    """Inputs for the day-type rules: the 10:30 ET snapshot, VWAP crosses by 11:00 ET,
+    the developing profile, acceptance outside developing value, and recent volume."""
+    from digest.indicators.profile import profile_shape, session_profile, side_of
+
+    out: dict = {}
+    if not len(sess):
+        return out
+    spy = m.intra.get("SPY")
+    spy_sess = spy[spy.index >= session_open] if spy is not None else None
+    vw = running_vwap(sess, spy_sess)
+    out["vwap_crosses"], _ = vwap_crosses(sess, vw, p.get("vwap_cross_min_pts", 0.0))
+    cutoff = _at(session_open, p["vwap_cutoff_et"])
+    pre = sess[sess.index < cutoff]
+    n, frac = vwap_crosses(pre, vw.reindex(pre.index), p.get("vwap_cross_min_pts", 0.0))
+    out.update(vwap_crosses_by_cutoff=n, vwap_above_frac=frac, vwap_cutoff_et=p["vwap_cutoff_et"],
+               vwap_check_final=m.as_of >= cutoff, vwap_crossed_both_ways=n >= 2)
+    snap_t = _at(session_open, p["classify_time_et"])
+    if m.as_of >= snap_t:
+        snap = sess[sess.index < snap_t]
+        if len(snap):
+            s = float(snap["c"].iloc[-1])
+            hi, lo, _ = opening_range(sess, session_open, m.as_of)
+            out.update(snapshot_time_et=p["classify_time_et"], snapshot_spot=s, snapshot_vs_or=spot_vs_range(s, hi, lo),
+                       snapshot_vs_prior_va=side_of(s, prior_vah, prior_val))
+    prof, _ = session_profile(sess, spy_sess)
+    if prof:
+        out.update(dev_poc=prof["poc"], dev_vah=prof["vah"], dev_val=prof["val"], dev_poc_position=prof["poc_position"],
+                   profile_shape=profile_shape(prof, p["profile_upper"], p["profile_lower"], p["elongated_va_frac"]))
+        last = sess["c"].iloc[-int(p["acceptance_closes"]):]
+        if len(last) >= p["acceptance_closes"]:
+            out["accepted_outside_dev_va"] = ("above" if (last > prof["vah"]).all() else "below" if (last < prof["val"]).all() else "no")
+    if spy_sess is not None and len(spy_sess):
+        lunch = spy_sess[(spy_sess.index >= _at(session_open, "12:00")) & (spy_sess.index < _at(session_open, "13:30"))]["v"]
+        recent = spy_sess["v"].iloc[-4:-1]  # skip the bar still forming
+        if len(lunch) >= 6 and len(recent) and lunch.mean() > 0 and m.as_of >= _at(session_open, "13:30"):
+            out["volume_ratio_recent"] = float(recent.mean() / lunch.mean())
+    return out
 
 
 def compute_intraday(m: Market, sess: pd.DataFrame, session_open: datetime, spot, atr_pts, em_pts, retest_tol_atr_frac: float) -> dict:

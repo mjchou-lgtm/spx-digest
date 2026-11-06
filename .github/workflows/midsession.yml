@@ -3,8 +3,8 @@ name: midsession
 # exits with a one-line skip reason unless now is inside the post's Pacific-time window.
 on:
   schedule:
-    - cron: "30 16 * * 1-5"
-    - cron: "30 17 * * 1-5"
+    - cron: "45 14 * * 1-5"
+    - cron: "45 15 * * 1-5"
   workflow_dispatch:
     inputs:
       force:

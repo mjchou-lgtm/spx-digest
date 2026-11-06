@@ -18,12 +18,15 @@ PT = ZoneInfo("America/Los_Angeles")
 ET = ZoneInfo("America/New_York")
 UTC = ZoneInfo("UTC")
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "2.0"
 
 CALENDARS_DIR = ROOT / "calendars"
 TEMPLATES_DIR = ROOT / "templates"
 STATIC_DIR = ROOT / "static"
 REGIME_RULES_PATH = ROOT / "regime_rules.yaml"
+PLAYBOOK_PATH = ROOT / "playbook.yaml"
+CONCEPTS_DIR = ROOT / "concepts"
+JOURNAL_PATH = ROOT / "journal" / "trades.csv"
 FORBIDDEN_PHRASES_PATH = ROOT / "forbidden_phrases.txt"
 DOCS_DIR = ROOT / "docs"
 
@@ -31,9 +34,9 @@ POST_TYPES = ("premarket", "midsession", "afternoon")
 
 # Scheduled publish time (Pacific) per post type on a normal session.
 POST_TIMES_PT = {
-    "premarket": (5, 45),
-    "midsession": (9, 30),
-    "afternoon": (11, 45),
+    "premarket": (6, 15),    # 09:15 ET
+    "midsession": (7, 45),   # 10:45 ET, after the 10:30 ET classification
+    "afternoon": (11, 15),   # 14:15 ET, ahead of the late window
 }
 # On an early-close day the afternoon post moves to this many minutes before the close.
 EARLY_CLOSE_AFTERNOON_LEAD_MIN = 60
@@ -45,7 +48,7 @@ WINDOW_LATE_TOLERANCE_MIN = 40
 # --- Tickers -----------------------------------------------------------------
 SPX = "^GSPC"
 FUTURES = ["ES=F", "NQ=F", "RTY=F"]
-VOL = ["^VIX", "^VIX9D", "^VIX3M", "^VIX6M", "^VVIX", "^SKEW"]
+VOL = ["^VIX", "^VIX1D", "^VIX9D", "^VIX3M", "^VIX6M", "^VVIX", "^SKEW"]
 RATES = ["^TNX", "^FVX", "^IRX"]
 MACRO = ["DX-Y.NYB", "CL=F", "GC=F"]
 ETFS = ["SPY", "RSP", "QQQ", "IWM"]
@@ -54,7 +57,7 @@ MEGACAPS = ["NVDA", "AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "AVGO"]
 
 DAILY_TICKERS = [SPX, *FUTURES, *VOL, *RATES, *MACRO, *ETFS, *SECTORS, *MEGACAPS]
 # 5-min bars (with pre/post) — only what the indicators actually use.
-INTRADAY_TICKERS = [SPX, "ES=F", "NQ=F", "RTY=F", "^VIX", "SPY", "RSP", "QQQ", "IWM", *SECTORS, *MEGACAPS]
+INTRADAY_TICKERS = [SPX, "ES=F", "NQ=F", "RTY=F", "^VIX", "^VIX1D", "SPY", "RSP", "QQQ", "IWM", *SECTORS, *MEGACAPS]
 
 CHAIN_PRIMARY = "^SPX"
 CHAIN_FALLBACK = "SPY"
@@ -76,6 +79,12 @@ FED_CALENDAR_URL = "https://www.federalreserve.gov/json/calendar.json"
 TREASURY_UPCOMING_URL = "https://www.treasurydirect.gov/TA_WS/securities/upcoming?format=json"
 BEA_SCHEDULE_URL = "https://www.bea.gov/news/schedule"
 FRED_BASE = "https://api.stlouisfed.org/fred"
+# ForexFactory's public weekly calendar feed (JSON). Supplements the official calendars
+# with releases they do not cover (ISM, jobless claims, JOLTS, sentiment...).
+FF_CALENDAR_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
+
+# Dealer gamma / GEX is not computed or estimated. Link slot for a vendor page, blank until set.
+GEX_VENDOR_URL = os.environ.get("DIGEST_GEX_VENDOR_URL", "")
 
 HTTP_USER_AGENT = "spx-digest/0.1 (read-only market digest)"
 HTTP_TIMEOUT_S = 20
@@ -83,13 +92,13 @@ RETRIES = 3
 
 # --- Narrative -----------------------------------------------------------------
 CLAUDE_MODEL = os.environ.get("DIGEST_CLAUDE_MODEL", "claude-sonnet-5-5")
-# Thinking tokens count against max_tokens; the prompt caps the prose at ~700 tokens.
+# Thinking tokens count against max_tokens; the prompt caps the prose at a verdict line + 150 words.
 CLAUDE_MAX_TOKENS = 3000
 CLAUDE_EFFORT = "low"
 
 SITE_TITLE = "SPX 0DTE Digest"
 SITE_BASE_URL = os.environ.get("DIGEST_SITE_URL", "")
-GITHUB_REPO = os.environ.get("GITHUB_REPOSITORY", "mjchou-lgtm/spx-digest")  # for the Generate page  # e.g. https://<user>.github.io/spx-digest
+GITHUB_REPO = os.environ.get("GITHUB_REPOSITORY", "mjchou-lgtm/spx-digest")  # for the Generate page
 
 
 def anthropic_key() -> str | None:

@@ -9,7 +9,7 @@ from typing import Literal, get_args, get_origin
 from pydantic import BaseModel
 
 from digest import config
-from digest.brief import Brief, Event, Headline
+from digest.brief import Brief, Event, Headline, Level, SourceRef
 
 D = {
     "meta.schema_version": "Brief schema version (semver-ish; bump on breaking change).",
@@ -64,7 +64,7 @@ D = {
     "vol.vix_minus_rv20_pts": "VIX - RV20 (vol points): variance-risk-premium read.",
     "vol.expected_move_0dte_pts": "ATM 0DTE straddle now (pts). Intraday this prices only the remaining session.",
     "vol.expected_move_0dte_pct": "expected_move_0dte_pts as % of spot.",
-    "vol.expected_move_day_pts": "Whole-session expected move (pts): premarket straddle, else time-scaled current straddle.",
+    "vol.expected_move_day_pts": "Whole-session expected move (pts): the 09:35 ET print, else the premarket straddle, else the time-scaled current straddle.",
     "vol.expected_move_day_source": "Where expected_move_day_pts came from.",
     "vol.expected_move_weekly_pts": "ATM straddle for the next Friday expiry (pts).",
     "vol.expected_move_weekly_pct": "Weekly straddle as % of spot.",
@@ -83,11 +83,6 @@ D = {
     "positioning.put_oi_top_strikes": "Top 5 0DTE put strikes by OI (pts).",
     "positioning.nearest_oi_strike": "Top-OI strike nearest spot (pts).",
     "positioning.spot_to_nearest_oi_strike_pts": "spot - nearest_oi_strike (pts).",
-    "positioning.net_gex_at_spot_usd_bn": "Approx. net 0DTE gamma exposure at spot, $bn per 1% move (OI-based).",
-    "positioning.gamma_flip_approx": "Approx. spot level where net GEX changes sign (pts).",
-    "positioning.spot_vs_gamma_flip_pts": "spot - gamma_flip_approx (pts).",
-    "positioning.spot_vs_gamma_flip": "above | below the approx. flip.",
-    "positioning.gex_method": "Method label: approximate, OI-based; not dealer positioning.",
     "cross_asset.es_change_pct": "ES vs prior daily close (%).",
     "cross_asset.nq_change_pct": "NQ vs prior daily close (%).",
     "cross_asset.rty_change_pct": "RTY vs prior daily close (%).",
@@ -139,14 +134,93 @@ D = {
     "intraday.realized_range_em_fraction": "Today's range so far / expected_move_day_pts.",
     "intraday.high_retested": "Price returned to the session high after a pullback.",
     "intraday.low_retested": "Price returned to the session low after a bounce.",
-    "regime.label": "TREND_UP | TREND_DOWN | RANGE | EVENT_WAIT | VOL_EXPANSION | NO_TRADE.",
-    "regime.confidence": "low | medium | high.",
-    "regime.rules_fired": "Conditions met for the winning label (or the gate that fired).",
-    "regime.scores": "Score per label (0-1).",
     "data_quality.null_fields": "Fields unexpectedly null for this post type.",
     "data_quality.fallbacks": "Fallbacks used (SPY chain, ES-implied spot, proxy VWAP...).",
     "data_quality.source_errors": "Sources that failed after retries.",
     "data_quality.notes": "Other caveats (early close, empty calendar...).",
+    "levels.range_position_pct": "Where spot sits in today's range: 0 = session low, 100 = session high.",
+    "levels.prior_poc": "Prior session point of control (pts), volume-at-price.",
+    "levels.prior_vah": "Prior session value area high (pts), 70% value area.",
+    "levels.prior_val": "Prior session value area low (pts).",
+    "levels.value_area_method": "How the value area was computed.",
+    "levels.open_vs_prior_va": "Today's open (pre-market: indicated spot) above / inside / below the prior value area.",
+    "levels.spot_vs_prior_va": "Spot above / inside / below the prior value area.",
+    "levels.round_levels": "Round numbers (regime_rules.yaml levels.round_step_pts) within one expected move of spot.",
+    "levels.level_stack": "All levels, high to low (records below), with confluence marked.",
+    "vol.vix1d": "VIX1D level (latest, else prior close): the 0DTE-specific vol gauge.",
+    "vol.vix1d_pctile_20d": "Percentile rank of VIX1D against its last 20 closes (0-100).",
+    "vol.vix1d_20d_low": "Lowest VIX1D close of the last 20.",
+    "vol.vix1d_20d_high": "Highest VIX1D close of the last 20.",
+    "vol.vix1d_label": "low / normal / high / extreme from the percentile (thresholds in regime_rules.yaml).",
+    "vol.iv_high": "VIX1D label is high or extreme.",
+    "vol.straddle_strike": "Strike of the ATM straddle used for expected_move_0dte_pts.",
+    "vol.straddle_quote_time_et": "Time the chain was fetched (HH:MM ET); quotes are delayed.",
+    "vol.implied_range_low": "spot - straddle (pts).",
+    "vol.implied_range_high": "spot + straddle (pts).",
+    "vol.straddle_0935_pts": "The day's 09:35 ET ATM straddle print (pts): auto capture or manual entry.",
+    "vol.straddle_0935_time_et": "Time of that print (HH:MM ET).",
+    "vol.straddle_0935_source": "auto (chain) or manual.",
+    "vol.iv_crush_pct": "Straddle now vs the 09:35 ET print (%), or the VIX1D-based estimate when there is no print.",
+    "vol.iv_crush_label": "crush done at or below premium.crush_done_pct, else still elevated.",
+    "vol.iv_crush_basis": "What iv_crush_pct is based on (straddle prints, or the labelled VIX1D estimate).",
+    "vol.theta_extrinsic_remaining_pct": "ATM extrinsic remaining now under sqrt-of-time decay (%).",
+    "positioning.gex_vendor_url": "Link slot for a dealer-gamma vendor page (GEX is not computed); null until set.",
+    "calendar.earnings_prev_session": "Mega-cap earnings on the prior session date.",
+    "calendar.data_day": "A high-relevance release or Fed event is on today's calendar.",
+    "intraday.vwap_crosses": "5-min closes that crossed the running VWAP so far today.",
+    "intraday.vwap_crosses_by_cutoff": "VWAP crosses up to vwap_cutoff_et (the count the day-type rules use).",
+    "intraday.vwap_cutoff_et": "Cutoff for the VWAP rule (HH:MM ET).",
+    "intraday.vwap_check_final": "The cutoff has passed, so the VWAP count is final.",
+    "intraday.vwap_crossed_both_ways": "At least two VWAP crosses by the cutoff.",
+    "intraday.vwap_above_frac": "Share of 5-min closes above VWAP up to the cutoff (0-1).",
+    "intraday.snapshot_time_et": "Classification snapshot time (HH:MM ET); null before it.",
+    "intraday.snapshot_spot": "SPX at the snapshot (pts).",
+    "intraday.snapshot_vs_or": "Snapshot spot inside / above / below the opening range.",
+    "intraday.snapshot_vs_prior_va": "Snapshot spot above / inside / below the prior value area.",
+    "intraday.dev_poc": "Developing (today's) point of control (pts).",
+    "intraday.dev_vah": "Developing value area high (pts).",
+    "intraday.dev_val": "Developing value area low (pts).",
+    "intraday.dev_poc_position": "Developing POC position in today's range (0 = low, 1 = high).",
+    "intraday.profile_shape": "D / P / b / elongated (see concepts/volume-profile).",
+    "intraday.accepted_outside_dev_va": "above / below when the last acceptance_closes 5-min closes are all beyond that developing value edge; else no.",
+    "intraday.volume_ratio_recent": "Recent 5-min SPY volume / the 12:00-13:30 ET average (volume returning); null before 13:30 ET.",
+    "regime.label": "trend_up / trend_down / balance / gap_and_go / gap_and_fill / undetermined.",
+    "regime.lean": "Pre-classification lean: gap_up, gap_down, open_above_value, open_below_value, open_inside_value.",
+    "regime.rules_fired": "Conditions that were met.",
+    "regime.rules_failed": "Conditions that were not met.",
+    "regime.conflicts": "Rule sets that point in opposite directions (label becomes undetermined).",
+    "regime.prior_label": "Label from the earlier post today, if any.",
+    "regime.confirmation": "first classification / confirmed / changed against prior_label.",
+    "regime.holding": "Whether price now still supports the label.",
+    "regime.holding_note": "What holding was judged on.",
+    "playbook.live": "early / late / none / pending (pre-market).",
+    "playbook.direction": "up / down when the regime gives one.",
+    "playbook.instrument": "single leg, or the high-IV instrument from playbook.yaml.",
+    "playbook.early_status": "Early playbook status and the reason.",
+    "playbook.early_trigger": "Early trigger condition, when live.",
+    "playbook.early_invalidation": "What invalidates the early trigger.",
+    "playbook.early_window_et": "Early window (ET).",
+    "playbook.early_time_stop_et": "Early time stop (ET).",
+    "playbook.late_status": "Late playbook status and the reason.",
+    "playbook.late_trigger": "The one late trigger that qualifies.",
+    "playbook.late_window_et": "Late window (ET).",
+    "playbook.flat_by_et": "Flat-by time (ET).",
+    "playbook.premium_cap": "Late premium cap from playbook.yaml, or not set.",
+    "playbook.reasons": "Why the playbook is in this state.",
+    "playbook.flip": "What would flip the read.",
+    "playbook.do_not": "The never list from playbook.yaml.",
+    "data_quality.manual_inputs": "Values the user can type in because no free source supplied them.",
+    "data_quality.sources": "Sources fetched for this run (records below).",
+    "event.url": "Canonical schedule page for the event's source.",
+    "level.name": "Level name.",
+    "level.price": "Price (pts).",
+    "level.kind": "prior / value / overnight / opening_range / vwap / session / developing / round.",
+    "level.confluence": "Another level sits within levels.confluence_tolerance_pts.",
+    "level.confluence_with": "Names of those levels.",
+    "source.name": "Source label.",
+    "source.url": "URL fetched (or the page behind a yfinance call).",
+    "source.fetched_at_utc": "UTC ISO fetch time.",
+    "source.ok": "False if the fetch failed.",
     "event.date": "YYYY-MM-DD.", "event.time_et": "HH:MM ET, null if unknown.", "event.name": "Description.",
     "event.category": "e.g. CPI, FOMC_DECISION, MEGACAP_EARNINGS, AUCTION_10Y_20Y_30Y, FED_SPEAKER.",
     "event.premium_relevance": "high | medium | low (mapping in regime_rules.yaml).",
@@ -164,7 +238,7 @@ def _type(ann) -> str:
         return f"list[{_type(get_args(ann)[0])}]"
     if get_origin(ann) is dict:
         return "map[str, float]"
-    return getattr(ann, "__name__", str(ann)).replace("Event", "event").replace("Headline", "headline")
+    return getattr(ann, "__name__", str(ann)).replace("Event", "event").replace("Headline", "headline").replace("SourceRef", "source").replace("Level", "level")
 
 
 def rows():
@@ -174,7 +248,7 @@ def rows():
             model = next(a for a in get_args(model) if isinstance(a, type) and issubclass(a, BaseModel))
         for name, f in model.model_fields.items():
             yield sec, name, _type(f.annotation), D.get(f"{sec}.{name}")
-    for rec, model in (("event", Event), ("headline", Headline)):
+    for rec, model in (("event", Event), ("headline", Headline), ("level", Level), ("source", SourceRef)):
         for name, f in model.model_fields.items():
             yield rec, name, _type(f.annotation), D.get(f"{rec}.{name}")
 
@@ -186,7 +260,7 @@ def render() -> str:
         f"Current `schema_version`: **{config.SCHEMA_VERSION}**. Generated from `digest/brief.py` by `python -m digest.schema_doc` — do not edit by hand.",
         "",
         "Conventions: snake_case; units in field names (`_pts` SPX index points, `_pct` percent, `_bp` basis points, `_usd_bn` billions of dollars); "
-        "sections are flat (one level deep); lists hold primitives or flat records (`event`, `headline`). Any value may be `null` when its source failed "
+        "sections are flat (one level deep); lists hold primitives or flat records (`event`, `headline`, `level`, `source`). Any value may be `null` when its source failed "
         "or it does not apply to the post type (intraday fields in a premarket post). Consumers should treat unknown fields as additive within a major version.",
         "",
         "Published at `data/YYYY-MM-DD/<post_type>.brief.json` and, for the latest post of each type, inside `api/latest.json` (static JSON, CORS-friendly on GitHub Pages).",
@@ -194,7 +268,7 @@ def render() -> str:
     cur = None
     for sec, name, typ, desc in rows():
         if sec != cur:
-            out += ["", f"## `{sec}`" if sec not in ("event", "headline") else f"## record: `{sec}`", "", "| field | type | description |", "|---|---|---|"]
+            out += ["", f"## `{sec}`" if sec not in ("event", "headline", "level", "source") else f"## record: `{sec}`", "", "| field | type | description |", "|---|---|---|"]
             cur = sec
         out.append(f"| `{name}` | {typ} | {(desc or '').replace('|', '/')} |")
     return "\n".join(out) + "\n"

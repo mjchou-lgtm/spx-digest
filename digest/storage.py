@@ -69,3 +69,25 @@ def write_json_new(path: Path, obj) -> None:
 
 def output_root(write_to_dataset: bool) -> Path:
     return config.ROOT if write_to_dataset else config.ROOT / "out"
+
+
+# --- 09:35 ET straddle print (auto capture or manual entry; never overwritten) ---------
+
+def straddle_files(root: Path, date: str) -> list[Path]:
+    d = root / "data" / date
+    return sorted(d.glob("straddle_0935*.json"), key=lambda p: int((re.search(r"\.(\d+)\.json$", p.name) or [0, 1])[1])) if d.exists() else []
+
+
+def write_straddle(root: Path, date: str, record: dict) -> Path:
+    n = len(straddle_files(root, date)) + 1
+    path = root / "data" / date / ("straddle_0935.json" if n == 1 else f"straddle_0935.{n}.json")
+    write_json_new(path, record)
+    return path
+
+
+def read_straddle(roots: list[Path], date: str) -> dict | None:
+    """The day's 09:35 ET print: the latest manual entry if there is one, else the first automatic capture."""
+    recs = [json.loads(p.read_text()) for r in roots for p in straddle_files(r, date)]
+    manual = [r for r in recs if r.get("source") == "manual"]
+    auto = [r for r in recs if r.get("source") != "manual"]
+    return manual[-1] if manual else (auto[0] if auto else None)

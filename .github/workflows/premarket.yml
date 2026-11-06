@@ -3,8 +3,8 @@ name: premarket
 # exits with a one-line skip reason unless now is inside the post's Pacific-time window.
 on:
   schedule:
-    - cron: "45 12 * * 1-5"
-    - cron: "45 13 * * 1-5"
+    - cron: "15 13 * * 1-5"
+    - cron: "15 14 * * 1-5"
   workflow_dispatch:
     inputs:
       force:

@@ -18,8 +18,48 @@ def relevance_for(category: str, rules: dict) -> str:
     return "low"
 
 
+# Canonical schedule page per event category (shown as the event's source link).
+BLS_URL = "https://www.bls.gov/schedule/news_release/"
+BEA_URL = "https://www.bea.gov/news/schedule"
+FED_URL = "https://www.federalreserve.gov/newsevents/calendar.htm"
+EARNINGS_URL = "https://finance.yahoo.com/calendar/earnings"
+CATEGORY_URL = {
+    "CPI": BLS_URL, "PPI": BLS_URL, "NFP": BLS_URL, "GDP": BEA_URL, "PCE": BEA_URL,
+    "RETAIL_SALES": "https://www.census.gov/economic-indicators/calendar-listview.html",
+    "FOMC_DECISION": FED_URL, "FOMC_PRESS_CONFERENCE": FED_URL, "FOMC_MEETING_DAY1": FED_URL, "FOMC_MINUTES": FED_URL,
+    "FED_SPEAKER": FED_URL, "FED_TESTIMONY": FED_URL,
+    "MEGACAP_EARNINGS": EARNINGS_URL, "LARGECAP_EARNINGS": EARNINGS_URL,
+    "AUCTION_10Y_20Y_30Y": "https://www.treasurydirect.gov/auctions/upcoming/", "AUCTION_OTHER": "https://www.treasurydirect.gov/auctions/upcoming/",
+    "FF_HIGH": "https://www.forexfactory.com/calendar", "FF_MEDIUM": "https://www.forexfactory.com/calendar",
+}
+
+# ForexFactory rows that duplicate an event already in the official calendars are dropped.
+FF_DUPLICATE_KEYS = {
+    "CPI": ["cpi"], "NFP": ["non-farm", "nonfarm", "unemployment rate", "average hourly"], "PPI": ["ppi"],
+    "RETAIL_SALES": ["retail sales"], "GDP": ["gdp"], "PCE": ["pce"],
+    "FOMC_DECISION": ["federal funds rate", "fomc statement"], "FOMC_PRESS_CONFERENCE": ["fomc press"],
+    "FOMC_MINUTES": ["fomc meeting minutes"], "FED_SPEAKER": ["speaks"], "FED_TESTIMONY": ["testifies"],
+}
+
+
 def _ev(d: str, time_et: str | None, name: str, category: str, rules: dict) -> dict:
-    return {"date": d, "time_et": time_et, "name": name, "category": category, "premium_relevance": relevance_for(category, rules)}
+    return {"date": d, "time_et": time_et, "name": name, "category": category,
+            "premium_relevance": relevance_for(category, rules), "url": CATEGORY_URL.get(category)}
+
+
+def ff_events(ff: list[dict] | None, d: date, existing: list[dict], rules: dict) -> list[dict]:
+    if not ff:
+        return []
+    ds = d.isoformat()
+    have = {e["category"] for e in existing}
+    skip = [k for cat, keys in FF_DUPLICATE_KEYS.items() if cat in have for k in keys]
+    out = []
+    for r in ff:
+        title = r.get("title", "")
+        if r.get("date") != ds or any(k in title.lower() for k in skip):
+            continue
+        out.append(_ev(ds, r.get("time_et"), title, "FF_HIGH" if r.get("impact") == "High" else "FF_MEDIUM", rules))
+    return out
 
 
 def fomc_events(meetings: list[dict], d: date, rules: dict) -> list[dict]:
@@ -108,6 +148,7 @@ def events_for(d: date, sources: dict, rules: dict) -> list[dict]:
     ev += auction_events(sources.get("auctions", []), d, rules)
     ev += fed_speaker_events(sources.get("fed_calendar"), d, rules)
     ev += earnings_events(sources.get("earnings"), d, config.MEGACAPS, rules)
+    ev += ff_events(sources.get("ff_calendar"), d, ev, rules)
     # De-duplicate (live auctions + static calendar overlap).
     seen, out = set(), []
     for e in sorted(ev, key=lambda e: (e["time_et"] or "99:99", e["name"])):

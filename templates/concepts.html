@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Concepts · {{ site_title }}{% endblock %}
+{% block main %}
+<h1>Concepts</h1>
+<p class="muted">Short explainers behind the cards. Linked from every post.</p>
+<ul class="archive">
+{% for c in concepts %}<li><a href="{{ rel }}concepts/{{ c.slug }}.html">{{ c.title }}</a></li>{% endfor %}
+</ul>
+{% endblock %}

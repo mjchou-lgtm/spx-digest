@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [digest/**, templates/**, static/**, docs/**, regime_rules.yaml, posts/**, .github/workflows/deploy.yml, .github/workflows/_post.yml]
+    paths: [digest/**, templates/**, static/**, docs/**, concepts/**, regime_rules.yaml, playbook.yaml, posts/**, .github/workflows/deploy.yml, .github/workflows/_post.yml]
 
 concurrency:
   group: pages

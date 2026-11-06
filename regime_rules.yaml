@@ -1,128 +1,50 @@
-# Regime classification rules. All thresholds live here; digest/regime.py has no numbers.
+# Day-type rules. Every threshold lives here; digest/regime.py only says what is compared.
 #
-# How scoring works (see README "Notes" for the reasoning behind each rule):
-#   - Each label has conditions with a weight. A condition whose inputs are null
-#     is "not evaluable" and is left out of both numerator and denominator.
-#   - score(label) = sum(weights of conditions met) / sum(weights evaluable)
-#   - A label is eligible only if all its `required` conditions are met and the
-#     evaluable weight is at least `min_evaluable_weight`.
-#   - The highest eligible score wins. Confidence comes from the score and the
-#     margin over the runner-up (see `confidence`).
-#   - NO_TRADE is chosen by the gates below, or when nothing is eligible, or when
-#     the winner is low-confidence and within `conflict_margin` of the runner-up.
+# Labels: trend_up, trend_down, balance, gap_and_go, gap_and_fill, undetermined.
+#   gap_and_go    |gap| > gap_pct_min and, at classify_time_et, spot is beyond the opening range in the gap direction
+#   gap_and_fill  |gap| > gap_pct_min and, at classify_time_et, spot is back inside the prior value area
+#   trend_*       opens outside the prior value area, fewer than (trend_max_vwap_crosses + 1) VWAP crosses by
+#                 vwap_cutoff_et, and one-sided (closes on one side of VWAP at least one_sided_min_frac of the time,
+#                 on the same side as the open relative to value)
+#   balance       opens inside the prior value area, VWAP crossed both ways (>= balance_min_vwap_crosses by the
+#                 cutoff), developing POC between profile_lower and profile_upper of the day's range
+#   undetermined  before classify_time_et, when no rule set is fully met, or when the gap rule and the
+#                 structure rule point in opposite directions
+# Gap rules are checked first; a gap label and a same-direction structure label are compatible.
 
-version: 1
+version: 2
 
-gates:
-  # Fields that must be present for any label other than NO_TRADE.
-  critical_fields: [levels.spot, levels.prior_close, vol.vix]
-  # If more than this many of `important_fields` are null -> NO_TRADE (data quality).
-  important_fields:
-    - vol.expected_move_0dte_pts
-    - levels.atr20_pts
-    - vol.vix9d
-    - vol.vix3m
-    - positioning.gamma_flip_approx
-    - breadth.sectors_up_count
-  max_important_missing: 3
-  # Early close does not force NO_TRADE; it lowers confidence one notch.
-  early_close_confidence_penalty: 1
+classify:
+  gap_pct_min: 0.5
+  classify_time_et: "10:30"
+  vwap_cutoff_et: "11:00"
+  trend_max_vwap_crosses: 1
+  one_sided_min_frac: 0.7
+  balance_min_vwap_crosses: 2
+  profile_lower: 0.33
+  profile_upper: 0.67
+  elongated_va_frac: 0.8
+  vwap_cross_min_pts: 0.0
+  acceptance_closes: 2
 
-min_score: 0.5
-conflict_margin: 0.1
-confidence:
-  high:   {min_score: 0.75, min_margin: 0.25}
-  medium: {min_score: 0.55, min_margin: 0.10}
-  # anything else that is eligible -> low
+levels:
+  confluence_tolerance_pts: 5
+  round_step_pts: 50
 
-labels:
-  TREND_UP:
-    min_evaluable_weight: 3
-    required: [direction_up]
-    conditions:
-      direction_up:        {weight: 0, rule: "spot > prior_close"}
-      gap_vs_em:           {weight: 2, rule: "gap >= 0.5 x day expected move"}
-      holds_beyond_or:     {weight: 2, rule: "spot_vs_or == above (intraday)"}
-      above_vwap:          {weight: 1, rule: "spot_minus_vwap_pts >= 0.1 * atr20"}
-      breadth_confirms:    {weight: 1, rule: "sectors_up_count >= 8 of 11"}
-      equal_weight_confirms: {weight: 1, rule: "rsp_minus_spy_pct >= -0.1"}
-      vix_opposite:        {weight: 1, rule: "vix_change_pct <= -2"}
-    params:
-      gap_em_fraction_min: 0.5
-      vwap_atr_frac: 0.1
-      sectors_up_min: 8
-      rsp_minus_spy_min_pct: -0.1
-      vix_change_pct_max: -2.0
+premium:
+  crush_done_pct: -20
+  # VIX1D percentile rank against its last 20 closes.
+  vix1d_low_below: 25
+  vix1d_high_from: 75
+  vix1d_extreme_from: 95
+  volume_returning_ratio: 1.2
+  # ATM extrinsic remaining by time of day (sqrt-of-time model), shown as the theta reference.
+  theta_table_et: ["10:30", "11:30", "12:30", "13:30", "14:30", "15:30"]
 
-  TREND_DOWN:
-    min_evaluable_weight: 3
-    required: [direction_down]
-    conditions:
-      direction_down:      {weight: 0, rule: "spot < prior_close"}
-      gap_vs_em:           {weight: 2, rule: "gap <= -0.5 x day expected move"}
-      holds_beyond_or:     {weight: 2, rule: "spot_vs_or == below (intraday)"}
-      below_vwap:          {weight: 1, rule: "spot_minus_vwap_pts <= -0.1 * atr20"}
-      breadth_confirms:    {weight: 1, rule: "sectors_up_count <= 3 of 11"}
-      equal_weight_confirms: {weight: 1, rule: "rsp_minus_spy_pct <= 0.1"}
-      vix_opposite:        {weight: 1, rule: "vix_change_pct >= 2"}
-    params:
-      gap_em_fraction_max: -0.5
-      vwap_atr_frac: 0.1
-      sectors_up_max: 3
-      rsp_minus_spy_max_pct: 0.1
-      vix_change_pct_min: 2.0
-
-  RANGE:
-    min_evaluable_weight: 3
-    required: []
-    conditions:
-      inside_prior_range:  {weight: 2, rule: "prior_low <= spot <= prior_high"}
-      small_gap:           {weight: 1, rule: "|gap_em_fraction| < 0.3"}
-      range_used_low:      {weight: 2, rule: "range_used_atr_pct < 50 (intraday)"}
-      near_oi_cluster:     {weight: 1, rule: "|spot - nearest top-OI strike| <= 0.25 * expected_move_0dte"}
-      positive_gamma:      {weight: 2, rule: "spot above approx gamma flip"}
-      near_vwap:           {weight: 1, rule: "|spot_minus_vwap| <= 0.1 * atr20 (intraday)"}
-    params:
-      small_gap_em_fraction: 0.3
-      range_used_atr_pct_max: 50
-      oi_cluster_em_frac: 0.25
-      vwap_atr_frac: 0.1
-
-  EVENT_WAIT:
-    min_evaluable_weight: 1
-    required: [high_event_later]
-    conditions:
-      high_event_later:    {weight: 3, rule: "a high-relevance event is scheduled later in today's session"}
-      premium_rich_vs_rv:  {weight: 1, rule: "vix - rv20 >= 3 pts"}
-      em_rich_vs_rv:       {weight: 1, rule: "day expected move % >= 1.2 x daily RV20 (rv20 / sqrt(252))"}
-      compressed_so_far:   {weight: 1, rule: "range_used_atr_pct < 60 (intraday)"}
-    params:
-      vix_minus_rv20_min_pts: 3.0
-      em_vs_rv_ratio_min: 1.2
-      range_used_atr_pct_max: 60
-
-  VOL_EXPANSION:
-    min_evaluable_weight: 3
-    required: []
-    conditions:
-      front_backwardation: {weight: 2, rule: "vix9d / vix > 1.0"}
-      term_backwardation:  {weight: 1, rule: "vix / vix3m > 1.0"}
-      vvix_spike:          {weight: 1, rule: "vvix_change_pct >= 5 or vvix >= 110"}
-      vix_rising:          {weight: 1, rule: "vix_change_pct >= 5"}
-      negative_gamma:      {weight: 2, rule: "spot below approx gamma flip"}
-      range_expanded:      {weight: 2, rule: "range_used_atr_pct > 120 (intraday)"}
-    params:
-      vix9d_vix_ratio_min: 1.0
-      vix_vix3m_ratio_min: 1.0
-      vvix_change_pct_min: 5.0
-      vvix_level_min: 110
-      vix_change_pct_min: 5.0
-      range_used_atr_pct_min: 120
-
-# Calendar event -> premium_relevance (used by the brief and EVENT_WAIT).
+# Calendar event -> premium_relevance.
 premium_relevance:
-  high: [FOMC_DECISION, FOMC_PRESS_CONFERENCE, CPI, NFP, PCE, MEGACAP_EARNINGS]
-  medium: [PPI, RETAIL_SALES, AUCTION_10Y_20Y_30Y, FED_SPEAKER, FED_TESTIMONY, FOMC_MINUTES]
+  high: [FOMC_DECISION, FOMC_PRESS_CONFERENCE, CPI, NFP, PCE, MEGACAP_EARNINGS, FF_HIGH]
+  medium: [PPI, RETAIL_SALES, AUCTION_10Y_20Y_30Y, FED_SPEAKER, FED_TESTIMONY, FOMC_MINUTES, FF_MEDIUM]
   # anything else -> low (GDP, other auctions, other large-cap earnings, ...)
 
 intraday:

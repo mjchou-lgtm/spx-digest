@@ -115,3 +115,38 @@ def compute_levels(m: Market, prior: date, session_open: datetime, session_close
     out["weekly_open"] = period_open(m, "week", out.get("session_open"))
     out["monthly_open"] = period_open(m, "month", out.get("session_open"))
     return out
+
+
+def round_numbers(lo: float, hi: float, step: float) -> list[float]:
+    import math
+
+    first = math.ceil(lo / step) * step
+    return [float(x) for x in np.arange(first, hi + 1e-9, step)]
+
+
+def build_level_stack(lv: dict, intr: dict, tol_pts: float, round_step: float, reach_pts: float | None) -> tuple[list[dict], list[float]]:
+    """Level stack sorted high to low. Levels within tol_pts of each other are marked as confluence."""
+    named = [
+        ("prior high", lv.get("prior_high"), "prior"), ("prior low", lv.get("prior_low"), "prior"),
+        ("prior close", lv.get("prior_close"), "prior"),
+        ("prior VAH", lv.get("prior_vah"), "value"), ("prior POC", lv.get("prior_poc"), "value"), ("prior VAL", lv.get("prior_val"), "value"),
+        ("O/N high", lv.get("overnight_high"), "overnight"), ("O/N low", lv.get("overnight_low"), "overnight"),
+        ("OR high", intr.get("or_high"), "opening_range"), ("OR low", intr.get("or_low"), "opening_range"),
+        ("VWAP", intr.get("vwap"), "vwap"),
+        ("session high", lv.get("session_high"), "session"), ("session low", lv.get("session_low"), "session"),
+        ("dev VAH", intr.get("dev_vah"), "developing"), ("dev POC", intr.get("dev_poc"), "developing"), ("dev VAL", intr.get("dev_val"), "developing"),
+    ]
+    items = [{"name": n, "price": round(float(p), 2), "kind": k} for n, p, k in named if p is not None]
+    rounds: list[float] = []
+    spot = lv.get("spot")
+    if spot and items:
+        reach = reach_pts or spot * 0.005
+        rounds = round_numbers(spot - reach, spot + reach, round_step)
+        items += [{"name": f"round {int(r)}", "price": r, "kind": "round"} for r in rounds]
+    for it in items:
+        near = [o["name"] for o in items if o is not it and abs(o["price"] - it["price"]) <= tol_pts
+                and not (o["kind"] == it["kind"] == "round")]
+        it["confluence"] = bool(near)
+        it["confluence_with"] = ", ".join(near) if near else None
+    items.sort(key=lambda i: i["price"], reverse=True)
+    return items, rounds

@@ -1,7 +1,7 @@
 """brief.json schema (versioned). Documented in docs/brief-schema.md.
 
 Rules: snake_case, units in field names, sections are flat (one level deep);
-lists hold primitives or flat records. Any value may be null when its source
+lists hold primitives or flat records (event, headline, level, source). Any value may be null when its source
 failed or does not apply (e.g. intraday fields in a premarket post).
 """
 from __future__ import annotations
@@ -35,6 +35,14 @@ class Meta(_Flat):
     spot_source: Optional[str] = None
 
 
+class Level(_Flat):
+    name: str
+    price: float
+    kind: str
+    confluence: bool = False
+    confluence_with: Optional[str] = None
+
+
 class Levels(_Flat):
     spot: F = None
     prior_date: Optional[str] = None
@@ -58,12 +66,27 @@ class Levels(_Flat):
     session_low: F = None
     range_used_pts: F = None
     range_used_atr_pct: F = None
+    range_position_pct: F = None
+    prior_poc: F = None
+    prior_vah: F = None
+    prior_val: F = None
+    value_area_method: Optional[str] = None
+    open_vs_prior_va: Optional[Literal["above", "inside", "below"]] = None
+    spot_vs_prior_va: Optional[Literal["above", "inside", "below"]] = None
+    round_levels: list[float] = []
+    level_stack: list[Level] = []
 
 
 class Vol(_Flat):
     vix: F = None
     vix_change_pts: F = None
     vix_change_pct: F = None
+    vix1d: F = None
+    vix1d_pctile_20d: F = None
+    vix1d_20d_low: F = None
+    vix1d_20d_high: F = None
+    vix1d_label: Optional[Literal["low", "normal", "high", "extreme"]] = None
+    iv_high: Optional[bool] = None
     vix9d: F = None
     vix3m: F = None
     vix6m: F = None
@@ -78,6 +101,17 @@ class Vol(_Flat):
     vix_minus_rv20_pts: F = None
     expected_move_0dte_pts: F = None
     expected_move_0dte_pct: F = None
+    straddle_strike: F = None
+    straddle_quote_time_et: Optional[str] = None
+    implied_range_low: F = None
+    implied_range_high: F = None
+    straddle_0935_pts: F = None
+    straddle_0935_time_et: Optional[str] = None
+    straddle_0935_source: Optional[str] = None
+    iv_crush_pct: F = None
+    iv_crush_label: Optional[Literal["crush done", "still elevated"]] = None
+    iv_crush_basis: Optional[str] = None
+    theta_extrinsic_remaining_pct: F = None
     expected_move_day_pts: F = None
     expected_move_day_source: Optional[str] = None
     expected_move_weekly_pts: F = None
@@ -100,11 +134,7 @@ class Positioning(_Flat):
     put_oi_top_strikes: list[float] = []
     nearest_oi_strike: F = None
     spot_to_nearest_oi_strike_pts: F = None
-    net_gex_at_spot_usd_bn: F = None
-    gamma_flip_approx: F = None
-    spot_vs_gamma_flip_pts: F = None
-    spot_vs_gamma_flip: Optional[Literal["above", "below"]] = None
-    gex_method: str = "approximate, OI-based (OI x BS gamma x 100 x spot^2 x 0.01; calls +, puts -). Not dealer positioning."
+    gex_vendor_url: Optional[str] = None
 
 
 class CrossAsset(_Flat):
@@ -150,6 +180,7 @@ class Event(_Flat):
     name: str
     category: str
     premium_relevance: Literal["high", "medium", "low"]
+    url: Optional[str] = None
 
 
 class Headline(_Flat):
@@ -164,6 +195,8 @@ class Calendar(_Flat):
     next_session_date: Optional[str] = None
     next_fomc_date: Optional[str] = None
     days_to_next_fomc: Optional[int] = None
+    earnings_prev_session: list[str] = []
+    data_day: bool = False
     high_event_later_today: bool = False
     next_high_event_time_et: Optional[str] = None
     headlines: list[Headline] = []
@@ -182,13 +215,64 @@ class Intraday(_Flat):
     realized_range_em_fraction: F = None
     high_retested: Optional[bool] = None
     low_retested: Optional[bool] = None
+    vwap_crosses: Optional[int] = None
+    vwap_crosses_by_cutoff: Optional[int] = None
+    vwap_cutoff_et: Optional[str] = None
+    vwap_check_final: Optional[bool] = None
+    vwap_crossed_both_ways: Optional[bool] = None
+    vwap_above_frac: F = None
+    snapshot_time_et: Optional[str] = None
+    snapshot_spot: F = None
+    snapshot_vs_or: Optional[Literal["inside", "above", "below"]] = None
+    snapshot_vs_prior_va: Optional[Literal["above", "inside", "below"]] = None
+    dev_poc: F = None
+    dev_vah: F = None
+    dev_val: F = None
+    dev_poc_position: F = None
+    profile_shape: Optional[Literal["D", "P", "b", "elongated"]] = None
+    accepted_outside_dev_va: Optional[Literal["above", "below", "no"]] = None
+    volume_ratio_recent: F = None
+
+
+REGIME_LABELS = ("trend_up", "trend_down", "balance", "gap_and_go", "gap_and_fill", "undetermined")
 
 
 class Regime(_Flat):
-    label: Literal["TREND_UP", "TREND_DOWN", "RANGE", "EVENT_WAIT", "VOL_EXPANSION", "NO_TRADE"]
-    confidence: Literal["low", "medium", "high"]
+    label: Literal["trend_up", "trend_down", "balance", "gap_and_go", "gap_and_fill", "undetermined"]
+    lean: Optional[str] = None
     rules_fired: list[str] = []
-    scores: dict[str, float] = {}
+    rules_failed: list[str] = []
+    conflicts: list[str] = []
+    prior_label: Optional[str] = None
+    confirmation: Optional[Literal["first classification", "confirmed", "changed"]] = None
+    holding: Optional[bool] = None
+    holding_note: Optional[str] = None
+
+
+class Playbook(_Flat):
+    live: Literal["early", "late", "none", "pending"]
+    direction: Optional[Literal["up", "down"]] = None
+    instrument: Optional[str] = None
+    early_status: Optional[str] = None
+    early_trigger: Optional[str] = None
+    early_invalidation: Optional[str] = None
+    early_window_et: Optional[str] = None
+    early_time_stop_et: Optional[str] = None
+    late_status: Optional[str] = None
+    late_trigger: Optional[str] = None
+    late_window_et: Optional[str] = None
+    flat_by_et: Optional[str] = None
+    premium_cap: Optional[str] = None
+    reasons: list[str] = []
+    flip: list[str] = []
+    do_not: list[str] = []
+
+
+class SourceRef(_Flat):
+    name: str
+    url: str
+    fetched_at_utc: Optional[str] = None
+    ok: bool = True
 
 
 class DataQuality(_Flat):
@@ -196,6 +280,8 @@ class DataQuality(_Flat):
     fallbacks: list[str] = []
     source_errors: list[str] = []
     notes: list[str] = []
+    manual_inputs: list[str] = []
+    sources: list[SourceRef] = []
 
 
 class Brief(_Flat):
@@ -208,6 +294,7 @@ class Brief(_Flat):
     calendar: Calendar
     intraday: Intraday
     regime: Optional[Regime] = None
+    playbook: Optional[Playbook] = None
     data_quality: DataQuality
 
     def flat_items(self, sections: tuple[str, ...] | None = None):

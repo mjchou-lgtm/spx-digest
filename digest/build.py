@@ -1,4 +1,4 @@
-"""Static site: index (today's three slots), post pages, archive, /data/, /about, feed.xml, api/latest.json."""
+"""Static site: index (today's three slots), post pages, archive, /data/, /about, /concepts, feed.xml, api/latest.json."""
 from __future__ import annotations
 
 import json
@@ -34,11 +34,18 @@ class Post:
 
     @property
     def label(self) -> str:
-        return self.fm.get("regime", "NO_TRADE")
+        return self.fm.get("regime", "undetermined")
 
     @property
     def icon(self) -> str:
         return LABEL_ICON.get(self.label, "•")
+
+    @property
+    def time_et(self) -> str:
+        try:
+            return datetime.fromisoformat(self.fm["generated_at"]).astimezone(config.ET).strftime("%H:%M")
+        except (KeyError, TypeError, ValueError):
+            return ""
 
     @property
     def time_pt(self) -> str:
@@ -93,8 +100,9 @@ def brief_tables(brief: dict | None) -> list[dict]:
         return []
     out = []
     for sec, title in SECTION_TITLES.items():
-        rows = [(k, fmt(v)) for k, v in (brief.get(sec) or {}).items()]
-        out.append({"title": title, "rows": rows})
+        rows = [(k, fmt(v)) for k, v in (brief.get(sec) or {}).items() if k != "level_stack"]
+        if rows:
+            out.append({"title": title, "rows": rows})
     cal = brief.get("calendar") or {}
     ev = [(f"{e.get('time_et') or 'n/a'} ET", f"{e['name']} [{e['premium_relevance']}]") for e in cal.get("events_today", [])]
     ev += [("days_to_next_fomc", fmt(cal.get("days_to_next_fomc"))), ("next_fomc_date", fmt(cal.get("next_fomc_date")))]
@@ -105,22 +113,72 @@ def brief_tables(brief: dict | None) -> list[dict]:
     if heads:
         out.append({"title": "Headlines (titles only)", "rows": heads})
     reg = brief.get("regime") or {}
-    out.append({"title": "Regime rules fired", "rows": [("rule", r) for r in reg.get("rules_fired", [])] +
+    out.append({"title": "Regime rules", "rows": [("fired", r) for r in reg.get("rules_fired", [])] +
+                [("not met", r) for r in reg.get("rules_failed", [])] + [("conflict", r) for r in reg.get("conflicts", [])] +
                 [("score " + k, f"{v:.2f}") for k, v in (reg.get("scores") or {}).items()]})
     return out
 
 
-def regime_rules_table() -> list[dict]:
+def rules_tables() -> dict:
+    """Thresholds and playbook settings for the About and rules pages (straight from the YAML files)."""
     rules = yaml.safe_load(config.REGIME_RULES_PATH.read_text())
+    pb = yaml.safe_load(config.PLAYBOOK_PATH.read_text())
+
+    def show(v):
+        if v is None:
+            return "not set"
+        if isinstance(v, list):
+            return ", ".join(map(str, v))
+        return "yes" if v is True else "no" if v is False else str(v)
+
+    return {
+        "classify": [(k, show(v)) for k, v in rules["classify"].items()],
+        "levels": [(k, show(v)) for k, v in rules["levels"].items()],
+        "premium": [(k, show(v)) for k, v in rules["premium"].items()],
+        "playbook": {sec: [(k, show(v)) for k, v in pb[sec].items()] for sec in ("shared", "early", "late")},
+        "relevance": rules.get("premium_relevance", {}),
+    }
+
+
+def theta_rows() -> list[tuple[str, int]]:
+    from datetime import time as _t
+
+    from digest.indicators.premium import theta_table
+
+    rules = yaml.safe_load(config.REGIME_RULES_PATH.read_text())
+    d = date(2026, 1, 5)  # any normal session: the table depends only on time of day
+    o, c = datetime.combine(d, _t(9, 30), tzinfo=config.ET), datetime.combine(d, _t(16, 0), tzinfo=config.ET)
+    return theta_table(rules["premium"]["theta_table_et"], o, c)
+
+
+def concept_pages() -> list[dict]:
+    """concepts/*.md -> pages. `{{theta_table}}` and `{{rules_table}}` are filled from the YAML files."""
+    from digest.timefmt import both
+
     out = []
-    for label, spec in rules["labels"].items():
-        out.append({
-            "label": label, "icon": LABEL_ICON[label],
-            "required": spec.get("required", []),
-            "min_evaluable_weight": spec.get("min_evaluable_weight"),
-            "conditions": [(n, c["weight"], c["rule"]) for n, c in spec["conditions"].items()],
-            "params": spec.get("params", {}),
-        })
+    if not config.CONCEPTS_DIR.exists():
+        return out
+    rt = rules_tables()
+    theta_md = "\n".join(["| Time | ATM extrinsic remaining |", "|---|---|"] + [f"| {both(t)} | {p}% |" for t, p in theta_rows()])
+    rows = {k: dict(v) for k, v in rt["playbook"].items()}
+    e, l, sh = rows["early"], rows["late"], rows["shared"]
+    rules_md = "\n".join([
+        "| | Early | Late |", "|---|---|---|",
+        f"| Window | {both(e['window_et'].split(', ')[0])} to {both(e['window_et'].split(', ')[1])} | {both(l['window_et'].split(', ')[0])} to {both(l['window_et'].split(', ')[1])} |",
+        f"| Precondition | regime is one of {e['regimes']}; IV crush done (straddle at or below {rt['premium'][0][1]}% vs its 09:35 ET print), or high IV | an objective trigger: acceptance outside the developing value area, or a break of a confluence level with volume returning |",
+        f"| Instrument | {sh['instrument']}; {e['high_iv_instrument']} when VIX1D is high or extreme | {sh['instrument']} |",
+        f"| Sizing | {e['sizing']} | {l['sizing']} |",
+        f"| Stop | {e['stop']} | {l['stop']} |",
+        f"| Target | {e['target']} | {l['target']} |",
+        f"| Time stop | {both(e['time_stop_et'])} | flat by {both(sh['flat_by_et'])} |",
+        f"| Max trades | {e['max_trades']} | {l['max_trades']} |",
+        f"| Premium cap | n/a | {l['premium_cap']} |",
+        f"| Never | {sh['never']} | {sh['never']} |",
+    ])
+    for f in sorted(config.CONCEPTS_DIR.glob("*.md")):
+        text = f.read_text(encoding="utf-8").replace("{{theta_table}}", theta_md).replace("{{rules_table}}", rules_md)
+        title = next((ln[2:].strip() for ln in text.splitlines() if ln.startswith("# ")), f.stem)
+        out.append({"slug": f.stem, "title": title, "html": markdown.markdown(text, extensions=MD_EXT + ["attr_list", "toc"])})
     return out
 
 
@@ -160,7 +218,8 @@ def build_site(root: Path, out: Path) -> int:
         p = latest.get((show.isoformat(), ptype))
         sched = schedule.scheduled_time_pt(ptype, show).strftime("%H:%M") if schedule.posts_on(ptype, show) else None
         note = "No post on early-close days" if schedule.is_trading_day(show) and not schedule.posts_on(ptype, show) else None
-        slots.append({"post_type": ptype, "post": p, "scheduled": sched, "note": note})
+        slots.append({"post_type": ptype, "post": p, "scheduled": sched, "note": note,
+                      "scheduled_et": schedule.scheduled_time_pt(ptype, show).astimezone(config.ET).strftime("%H:%M") if sched else None})
     render("index.html", "index.html", day=show.isoformat(), slots=slots, is_session=schedule.is_trading_day(show),
            early_close=bool(schedule.session(show) and schedule.session(show).early_close),
            repo=config.GITHUB_REPO, post_types=config.POST_TYPES)
@@ -183,9 +242,14 @@ def build_site(root: Path, out: Path) -> int:
 
     # About.
     schema_md = (config.DOCS_DIR / "brief-schema.md").read_text() if (config.DOCS_DIR / "brief-schema.md").exists() else ""
-    render("about.html", "about/index.html", rules=regime_rules_table(),
-           schema_html=markdown.markdown(schema_md, extensions=MD_EXT),
-           relevance=yaml.safe_load(config.REGIME_RULES_PATH.read_text()).get("premium_relevance", {}))
+    rt = rules_tables()
+    render("about.html", "about/index.html", rt=rt, schema_html=markdown.markdown(schema_md, extensions=MD_EXT), relevance=rt["relevance"])
+
+    # Concept explainers (linked from every post).
+    concepts = concept_pages()
+    for c in concepts:
+        render("concept.html", f"concepts/{c['slug']}.html", c=c, concepts=concepts)
+    render("concepts.html", "concepts/index.html", concepts=concepts)
 
     # Generate page (buttons that dispatch the post workflows).
     render("run.html", "run/index.html", repo=config.GITHUB_REPO, post_types=config.POST_TYPES)
@@ -199,9 +263,9 @@ def build_site(root: Path, out: Path) -> int:
             pub = format_datetime(datetime.fromisoformat(p.fm["generated_at"]))
         except (KeyError, TypeError, ValueError):
             pub = ""
-        items.append({"title": f"{p.date} {p.post_type} — {p.icon} {p.label} ({p.fm.get('confidence')})",
+        items.append({"title": f"{p.date} {p.post_type}: {p.icon} {p.label}" + (f" ({p.fm['confidence']})" if p.fm.get("confidence") else ""),
                       "link": f"{base}/{p.url}" if base else p.url, "pub": pub,
-                      "summary": escape(p.body_md.strip().split("\n\n")[1][:400] if "\n\n" in p.body_md.strip() else p.label)})
+                      "summary": escape(p.fm.get("verdict") or (p.body_md.strip().split("\n\n")[1][:400] if "\n\n" in p.body_md.strip() else p.label))})
     (out / "feed.xml").write_text(env.get_template("feed.xml").render(items=items, base=base or "."), encoding="utf-8")
 
     api = {"schema_version": config.SCHEMA_VERSION, "built_at": built_at.isoformat(timespec="seconds"), "posts": {}}
@@ -210,7 +274,7 @@ def build_site(root: Path, out: Path) -> int:
         if cand:
             p = cand[0]
             api["posts"][ptype] = {
-                "date": p.date, "version": p.version, "regime": p.label, "confidence": p.fm.get("confidence"),
+                "date": p.date, "version": p.version, "regime": p.label, "playbook": p.fm.get("playbook"), "verdict": p.fm.get("verdict"),
                 "generated_at": p.fm.get("generated_at"), "url": p.url,
                 "brief_url": f"data/{p.date}/{p.stem}.brief.json", "brief": p.brief,
             }

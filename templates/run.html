@@ -17,6 +17,15 @@
     <label><input type="checkbox" id="opt-dry"> Dry run (no Claude call, nothing committed; output is a run artifact)</label>
   </fieldset>
 
+  <form id="straddle-form" class="gen-opts" autocomplete="off">
+    <strong>09:35 ET / 06:35 PT straddle print</strong>
+    <p class="muted">The IV-crush check compares the straddle with this print. It is captured automatically when the scheduled run is on time; type it in here if it is missing (read it from <a href="https://www.cboe.com/delayed_quotes/spx/quote_table" target="_blank" rel="noopener">Cboe delayed quotes</a>). Used by the next post you generate.</p>
+    <div class="row">
+      <input type="number" id="straddle-price" inputmode="decimal" step="0.01" min="0.01" placeholder="ATM straddle, SPX points" aria-label="ATM straddle price at 09:35 ET in SPX points" required>
+      <button type="submit" class="btn">Save print</button>
+    </div>
+  </form>
+
   <div id="gen-status" class="slot" role="status" aria-live="polite" hidden></div>
 
   <details class="brief" id="gen-token">

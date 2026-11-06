@@ -1,0 +1,43 @@
+# Your two playbooks. The digest reports whether these conditions are met on the day;
+# it never places, changes or cancels an order.
+# Fields set to null are yours to fill in: they show as "not set" on the site and are never guessed.
+
+version: 1
+
+shared:
+  instrument: "single-leg, defined-risk SPX 0DTE"
+  flat_by_et: "15:45"
+  sizing: null
+  max_trades_per_day: null
+  # High IV (VIX1D label high or extreme) on a balance day: no playbook is live.
+  sit_out_high_iv_balance: true
+  never:
+    - "counter-trend on gap-and-go"
+    - "new entries after 15:45 ET"
+    - "add to losers"
+
+early:
+  name: "Early: conviction trade off the opening range after IV crush"
+  window_et: ["10:00", "13:00"]
+  time_stop_et: "13:00"
+  regimes: [trend_up, trend_down, gap_and_go]
+  requires_iv_crush: true
+  # With no 09:35 straddle print, estimate the straddle change from VIX1D x sqrt(time). Labelled as an estimate.
+  allow_vix1d_crush_estimate: true
+  # High IV (VIX1D label high or extreme) with one of the regimes above: the early playbook is live
+  # without waiting for the crush, and the instrument shown is this one.
+  high_iv_overrides_crush: true
+  high_iv_instrument: "debit spread"
+  sizing: null
+  stop: null
+  target: null
+  max_trades: null
+
+late:
+  name: "Late: execution trade on an objective trigger, premium-capped"
+  window_et: ["14:30", "15:45"]
+  premium_cap: null
+  sizing: null
+  stop: null
+  target: null
+  max_trades: null

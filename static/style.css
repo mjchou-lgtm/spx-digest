@@ -51,3 +51,10 @@ tbody th { color: var(--muted); font-weight: 500; width: 45%; }
 #gen-token-form { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 #gen-token-input { flex: 1 1 220px; min-width: 0; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; }
 .gen-bar { margin-top: 24px; } .gen-bar h2 { margin-bottom: 0; }
+.r-balance { background: var(--range); } .r-gap_and_go { background: var(--event); } .r-gap_and_fill { background: var(--vol); } .r-undetermined { background: var(--none); }
+.verdict { font-weight: 600; margin: 8px 0 4px; }
+.card p { margin: 10px 0; overflow-wrap: anywhere; }
+.card ul { margin: 4px 0 10px; }
+.concept h2 { margin-top: 26px; }
+#straddle-form .row { display: flex; flex-wrap: wrap; gap: 8px; }
+#straddle-price { flex: 1 1 200px; min-width: 0; padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; }

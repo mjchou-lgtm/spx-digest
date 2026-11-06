@@ -45,8 +45,18 @@ def test_brief_sections_are_flat_and_snake_case(brief_mid):
 
 
 def test_committed_briefs_validate():
+    """Briefs of the current major schema version must validate; 1.x briefs stay in the archive as written."""
+    major = config.SCHEMA_VERSION.split(".")[0]
     for p in (ROOT / "data").rglob("*.brief.json"):
-        Brief.model_validate_json(p.read_text())
+        d = json.loads(p.read_text())
+        if d["meta"]["schema_version"].split(".")[0] == major:
+            Brief.model_validate(d)
+
+
+def test_schema_is_v2_without_dealer_gamma(brief_mid):
+    assert config.SCHEMA_VERSION == "2.0"
+    assert "gamma" not in brief_mid.model_dump_json().replace("Dealer gamma", "") and "gex_method" not in brief_mid.model_dump_json()
+    assert brief_mid.positioning.gex_vendor_url is None
 
 
 def test_schema_doc_is_complete_and_current():
@@ -67,10 +77,16 @@ def test_early_close_moves_afternoon_slot():
     assert s.early_close
     slot = schedule.scheduled_time_pt("afternoon", date(2026, 11, 27))
     assert slot.strftime("%H:%M") == "09:00"  # 13:00 ET close -> 10:00 PT, minus 60 min
-    assert schedule.scheduled_time_pt("afternoon", date(2026, 11, 4)).strftime("%H:%M") == "11:45"
+    assert schedule.scheduled_time_pt("afternoon", date(2026, 11, 4)).strftime("%H:%M") == "11:15"
 
 
-@pytest.mark.parametrize("hhmm,ok", [("05:40", True), ("05:45", True), ("06:25", True), ("06:30", False), ("04:45", False)])
+def test_slots_are_0915_1045_1415_et():
+    d = date(2026, 11, 4)
+    et = [schedule.scheduled_time_pt(p, d).astimezone(config.ET).strftime("%H:%M") for p in config.POST_TYPES]
+    assert et == ["09:15", "10:45", "14:15"]
+
+
+@pytest.mark.parametrize("hhmm,ok", [("06:10", True), ("06:15", True), ("06:55", True), ("07:00", False), ("05:15", False)])
 def test_window(hhmm, ok):
     h, m = map(int, hhmm.split(":"))
     res, reason = schedule.check_window("premarket", datetime(2026, 11, 4, h, m, tzinfo=PT))
@@ -78,20 +94,35 @@ def test_window(hhmm, ok):
 
 
 def test_both_dst_crons_only_one_runs():
-    # PST date: 13:45 UTC = 05:45 PST (runs); 12:45 UTC = 04:45 PST (skips).
+    # PST date: 14:15 UTC = 06:15 PST (runs); 13:15 UTC = 05:15 PST (skips).
     utc = config.UTC
-    assert schedule.check_window("premarket", datetime(2026, 11, 4, 13, 45, tzinfo=utc))[0]
-    assert not schedule.check_window("premarket", datetime(2026, 11, 4, 12, 45, tzinfo=utc))[0]
-    # PDT date: 12:45 UTC = 05:45 PDT (runs); 13:45 UTC = 06:45 PDT (skips).
-    assert schedule.check_window("premarket", datetime(2026, 6, 3, 12, 45, tzinfo=utc))[0]
-    assert not schedule.check_window("premarket", datetime(2026, 6, 3, 13, 45, tzinfo=utc))[0]
+    assert schedule.check_window("premarket", datetime(2026, 11, 4, 14, 15, tzinfo=utc))[0]
+    assert not schedule.check_window("premarket", datetime(2026, 11, 4, 13, 15, tzinfo=utc))[0]
+    # PDT date: 13:15 UTC = 06:15 PDT (runs); 14:15 UTC = 07:15 PDT (skips).
+    assert schedule.check_window("premarket", datetime(2026, 6, 3, 13, 15, tzinfo=utc))[0]
+    assert not schedule.check_window("premarket", datetime(2026, 6, 3, 14, 15, tzinfo=utc))[0]
+
+
+def test_workflow_crons_match_the_slots():
+    import re
+
+    import yaml
+
+    for post, (hh, mm) in config.POST_TIMES_PT.items():
+        wf = (ROOT / ".github" / "workflows" / f"{post}.yml").read_text()
+        crons = re.findall(r'cron: "(\d+) (\d+) \* \* 1-5"', wf)
+        want = {(str(mm), str(hh + 7)), (str(mm), str(hh + 8))}  # PDT and PST
+        assert want <= set(crons), (post, crons)
+    st = yaml.safe_load((ROOT / ".github" / "workflows" / "straddle.yml").read_text())
+    assert {c["cron"] for c in st[True]["schedule"]} == {"35 13 * * 1-5", "35 14 * * 1-5"}  # 09:35 ET in EDT / EST
+    assert "workflow_dispatch" in st[True]
 
 
 def test_no_midsession_on_early_close():
-    ok, reason = schedule.check_window("midsession", datetime(2026, 11, 27, 9, 30, tzinfo=PT))
+    ok, reason = schedule.check_window("midsession", datetime(2026, 11, 27, 7, 45, tzinfo=PT))
     assert not ok and "early-close" in reason
     assert schedule.check_window("afternoon", datetime(2026, 11, 27, 9, 0, tzinfo=PT))[0]
-    assert schedule.check_window("premarket", datetime(2026, 11, 27, 5, 45, tzinfo=PT))[0]
+    assert schedule.check_window("premarket", datetime(2026, 11, 27, 6, 15, tzinfo=PT))[0]
     assert schedule.posts_on("midsession", date(2026, 11, 4))
 
 
@@ -127,18 +158,128 @@ def test_build_site_from_fixture(tmp_path, brief_mid):
     storage.write_json_new(paths.data("brief"), json.loads(brief_mid.model_dump_json()))
     files = {k: str(paths.data(k).relative_to(root)) for k in storage.KINDS}
     fm = render.frontmatter(brief_mid, "unavailable", files, None)
-    storage.write_new(paths.post, render.post_markdown(fm, render.table_body(brief_mid, "test")))
+    storage.write_new(paths.post, render.post_markdown(fm, render.unavailable_body(brief_mid)))
     out = tmp_path / "site"
     assert build.build_site(root, out) == 1
     for f in ["index.html", "archive/index.html", "data/index.html", "about/index.html", "feed.xml", "api/latest.json",
-              "posts/2026-11-04/midsession.html", "static/style.css", "run/index.html", "static/run.js"]:
+              "posts/2026-11-06/midsession.html", "static/style.css", "run/index.html", "static/run.js", "concepts/index.html",
+              "concepts/daily-structure.html", "concepts/premium.html", "concepts/volume-profile.html", "concepts/edge.html", "concepts/rules.html"]:
         assert (out / f).exists(), f
-    page = (out / "posts/2026-11-04/midsession.html").read_text()
+    page = (out / "posts/2026-11-06/midsession.html").read_text()
     assert "Narrative unavailable" in page and "Indicator brief" in page and "Data quality" in page
-    assert "▲ TREND_UP" in page.replace("<span aria-hidden=\"true\">▲</span> ", "▲ ")  # icon + label, not colour alone
+    assert "↔ balance" in page.replace("<span aria-hidden=\"true\">↔</span> ", "↔ ")  # icon + label, not colour alone
+    assert 'href="../../concepts/premium.html#theta"' in page and "<strong>VERDICT:</strong>" in page
+    assert "regime classified as balance; playbook: none" in (out / "index.html").read_text()
+    prem = (out / "concepts/premium.html").read_text()
+    assert 'id="theta"' in prem and "10:30 ET / 07:30 PT" in prem and "92%" in prem and "28%" in prem
+    rules = (out / "concepts/rules.html").read_text()
+    assert "not set" in rules and "counter-trend on gap-and-go" in rules and "{{" not in rules
     latest = json.loads((out / "api/latest.json").read_text())
     assert latest["posts"]["midsession"]["regime"] == brief_mid.regime.label
     assert latest["posts"]["midsession"]["brief"]["meta"]["schema_version"] == config.SCHEMA_VERSION
+    assert latest["posts"]["midsession"]["playbook"] == "none" and latest["posts"]["midsession"]["verdict"]
+
+
+def test_archive_still_renders_schema_1_posts(tmp_path):
+    """The 2026-11-04 posts were written under schema 1.0 and are never rewritten."""
+    from digest import build
+
+    out = tmp_path / "site"
+    n = build.build_site(ROOT, out)
+    assert n >= 3 and (out / "posts/2026-11-04/premarket.html").exists()
+    assert "TREND_UP" in (out / "posts/2026-11-04/premarket.html").read_text()
+
+
+# --- 09:35 ET straddle print ---------------------------------------------------------
+
+def test_straddle_print_is_append_only_and_manual_wins(tmp_path):
+    d = "2026-11-06"
+    assert storage.read_straddle([tmp_path], d) is None
+    storage.write_straddle(tmp_path, d, {"pts": 60.0, "time_et": "09:37", "source": "auto (^SPX chain via yfinance)"})
+    storage.write_straddle(tmp_path, d, {"pts": 55.0, "time_et": "09:52", "source": "auto (^SPX chain via yfinance)"})
+    assert storage.read_straddle([tmp_path], d)["pts"] == 60.0  # first automatic capture
+    storage.write_straddle(tmp_path, d, {"pts": 61.5, "time_et": "09:35", "source": "manual"})
+    storage.write_straddle(tmp_path, d, {"pts": 62.0, "time_et": "09:35", "source": "manual"})
+    assert storage.read_straddle([tmp_path], d)["pts"] == 62.0  # latest manual entry
+    assert [p.name for p in storage.straddle_files(tmp_path, d)] == [
+        "straddle_0935.json", "straddle_0935.2.json", "straddle_0935.3.json", "straddle_0935.4.json"]
+
+
+def test_straddle_cli_manual_entry(tmp_path, monkeypatch, capsys):
+    from digest import cli
+
+    monkeypatch.setattr(config, "ROOT", tmp_path)
+    assert cli.main(["straddle", "--set", "58.4", "--date", "2026-11-05"]) == 0
+    assert storage.read_straddle([tmp_path], "2026-11-05") | {"recorded_at": None} == {
+        "date": "2026-11-05", "pts": 58.4, "time_et": "09:35", "source": "manual", "recorded_at": None}
+    assert cli.main(["straddle", "--set", "-1"]) == 2
+    assert cli.main(["straddle", "--date", "2026-11-05"]) == 0 and "use --set" in capsys.readouterr().out
+
+
+def test_run_context_reads_earlier_posts(tmp_path, brief_td_mid):
+    from digest import cli, render
+
+    paths = storage.next_paths(tmp_path, "2026-11-05", "midsession")
+    storage.write_json_new(paths.data("brief"), json.loads(brief_td_mid.model_dump_json()))
+    storage.write_new(paths.post, render.post_markdown(render.frontmatter(brief_td_mid, "dry-run", {}, None), render.card(brief_td_mid)))
+    storage.write_straddle(tmp_path, "2026-11-05", {"pts": 70.0, "time_et": "09:35", "source": "manual"})
+    ctx = cli.build_context([tmp_path], date(2026, 11, 5), "afternoon")
+    assert ctx["prior_regime_label"] == "trend_down" and ctx["straddle_0935"]["pts"] == 70.0
+    assert cli._prior_verdict(cli.prior_post([tmp_path], date(2026, 11, 5), "afternoon")).endswith("regime classified as trend_down; playbook: early")
+    # Schema 1.x briefs are not used as context.
+    assert cli.build_context([ROOT], date(2026, 11, 4), "afternoon").get("prior_regime_label") is None
+
+
+# --- calendar extras, time formatting, journal ----------------------------------------------
+
+def test_ff_events_skip_duplicates_of_official_calendars():
+    from digest.indicators.events import _ev, ff_events
+    from digest.regime import load_rules
+
+    rules = load_rules()
+    d = date(2026, 11, 6)
+    ff = [{"date": "2026-11-06", "time_et": "08:30", "title": "Non-Farm Employment Change", "impact": "High"},
+          {"date": "2026-11-06", "time_et": "10:00", "title": "Prelim UoM Consumer Sentiment", "impact": "High"},
+          {"date": "2026-11-05", "time_et": "08:30", "title": "Unemployment Claims", "impact": "High"}]
+    have = [_ev("2026-11-06", "08:30", "Employment Situation", "NFP", rules)]
+    out = ff_events(ff, d, have, rules)
+    assert [e["name"] for e in out] == ["Prelim UoM Consumer Sentiment"]
+    assert out[0]["premium_relevance"] == "high" and out[0]["url"].startswith("https://www.forexfactory.com")
+    assert len(ff_events(ff, d, [], rules)) == 2
+    assert have[0]["url"].startswith("https://www.bls.gov")
+
+
+def test_times_in_both_zones():
+    from digest.timefmt import both, num, tidy, with_pt
+
+    assert both("10:30") == "10:30 ET / 07:30 PT" and both(None) == "time n/a"
+    assert with_pt("window 14:30–15:45 ET, stop 13:00 ET") == "window 14:30–15:45 ET / 11:30–12:45 PT, stop 13:00 ET / 10:00 PT"
+    assert with_pt(both("09:35")) == both("09:35")  # idempotent
+    assert num(7400.0) == "7400" and num(51.65) == "51.65" and num(None) == "n/a"
+    assert tidy("value (7693.0–7711.0), 0.05") == "value (7693–7711), 0.05"
+
+
+def test_journal_reports_expectancy_only_from_30_rows(tmp_path):
+    import csv
+
+    from digest import journal
+
+    assert (ROOT / "journal" / "trades.csv").read_text().strip().split(",") == journal.FIELDS
+    f = tmp_path / "trades.csv"
+    rows = [{"date": "2026-11-05", "playbook": "early", "entry_time": "10:15" if i % 2 else "11:20", "pnl_r": "1.5" if i % 3 else "-1", "pnl_usd": "150" if i % 3 else "-100"}
+            for i in range(30)]
+    rows += [{"date": "2026-11-05", "playbook": "late", "entry_time": "14:40", "pnl_r": "2", "pnl_usd": "200"}] * 5
+    with open(f, "w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=journal.FIELDS)
+        w.writeheader()
+        w.writerows(rows)
+    text = journal.summary_text(f)
+    assert "late: 5 rows; expectancy is reported from 30 rows (25 to go)" in text
+    assert "early:" in text and "10:00–11:00 ET" in text and "11:00–12:00 ET" in text
+    e = journal.expectancy(journal.load(f)[:30])
+    assert e["n"] == 30 and e["win_rate_pct"] == pytest.approx(100 * 20 / 30)
+    assert e["expectancy_r"] == pytest.approx((20 * 1.5 - 10) / 30)
+    assert journal.window_of("15:50") == "other"
 
 
 # --- strategies + read-only guarantees ------------------------------------------------
