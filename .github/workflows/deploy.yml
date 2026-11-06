@@ -8,9 +8,11 @@ on:
     branches: [main]
     paths: [digest/**, templates/**, static/**, docs/**, concepts/**, regime_rules.yaml, playbook.yaml, posts/**, .github/workflows/deploy.yml, .github/workflows/_post.yml]
 
+# One deployment at a time. A running deployment is never cancelled (a new one waits for it):
+# cancelling a Pages deployment mid-publish can leave the next one stuck in "updating_pages".
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
