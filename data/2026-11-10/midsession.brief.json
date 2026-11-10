@@ -1,0 +1,586 @@
+{
+ "meta": {
+  "schema_version": "2.1",
+  "date": "2026-11-10",
+  "post_type": "midsession",
+  "version": 1,
+  "generated_at": "2026-11-10T16:32:31+00:00",
+  "data_as_of": "2026-11-10T11:30:00-05:00",
+  "as_of_pt": "2026-11-10 08:32",
+  "session_open_pt": "06:30",
+  "session_close_pt": "13:00",
+  "is_trading_day": true,
+  "is_early_close": false,
+  "market_closed_mode": false,
+  "spot_source": "SPX 5m"
+ },
+ "levels": {
+  "spot": 7502.74,
+  "prior_date": "2026-11-09",
+  "prior_open": 7422.24,
+  "prior_high": 7577.39,
+  "prior_low": 7422.24,
+  "prior_close": 7549.94,
+  "es_spx_basis_pts": 24.81,
+  "overnight_high": 7573.94,
+  "overnight_low": 7484.19,
+  "overnight_range_pts": 89.75,
+  "gap_pts": -36.85,
+  "gap_pct": -0.49,
+  "gap_em_fraction": -0.94,
+  "weekly_open": 7422.24,
+  "monthly_open": 7610.83,
+  "atr20_pts": 105.5,
+  "adr10_pts": 106.29,
+  "session_open": 7513.09,
+  "session_high": 7543.92,
+  "session_low": 7482.52,
+  "range_used_pts": 61.4,
+  "range_used_atr_pct": 58.2,
+  "range_position_pct": 32.93,
+  "prior_poc": 7521.5,
+  "prior_vah": 7566.0,
+  "prior_val": 7511.0,
+  "value_area_method": "SPX 5m bar ranges weighted by SPY 5m volume, 1-pt bins, 70% value area",
+  "open_vs_prior_va": "inside",
+  "spot_vs_prior_va": "below",
+  "round_levels": [
+   7500.0
+  ],
+  "level_stack": [
+   {
+    "name": "prior high",
+    "price": 7577.39,
+    "kind": "prior",
+    "confluence": true,
+    "confluence_with": "O/N high"
+   },
+   {
+    "name": "O/N high",
+    "price": 7573.94,
+    "kind": "overnight",
+    "confluence": true,
+    "confluence_with": "prior high"
+   },
+   {
+    "name": "prior VAH",
+    "price": 7566.0,
+    "kind": "value",
+    "confluence": false,
+    "confluence_with": null
+   },
+   {
+    "name": "prior close",
+    "price": 7549.94,
+    "kind": "prior",
+    "confluence": false,
+    "confluence_with": null
+   },
+   {
+    "name": "session high",
+    "price": 7543.92,
+    "kind": "session",
+    "confluence": false,
+    "confluence_with": null
+   },
+   {
+    "name": "OR high",
+    "price": 7530.03,
+    "kind": "opening_range",
+    "confluence": false,
+    "confluence_with": null
+   },
+   {
+    "name": "prior POC",
+    "price": 7521.5,
+    "kind": "value",
+    "confluence": false,
+    "confluence_with": null
+   },
+   {
+    "name": "prior VAL",
+    "price": 7511.0,
+    "kind": "value",
+    "confluence": true,
+    "confluence_with": "dev VAH"
+   },
+   {
+    "name": "dev VAH",
+    "price": 7506.0,
+    "kind": "developing",
+    "confluence": true,
+    "confluence_with": "prior VAL, VWAP, dev POC"
+   },
+   {
+    "name": "VWAP",
+    "price": 7504.42,
+    "kind": "vwap",
+    "confluence": true,
+    "confluence_with": "dev VAH, dev POC, round 7500"
+   },
+   {
+    "name": "dev POC",
+    "price": 7502.5,
+    "kind": "developing",
+    "confluence": true,
+    "confluence_with": "VWAP, dev VAH, round 7500"
+   },
+   {
+    "name": "round 7500",
+    "price": 7500.0,
+    "kind": "round",
+    "confluence": true,
+    "confluence_with": "VWAP, dev POC"
+   },
+   {
+    "name": "OR low",
+    "price": 7490.65,
+    "kind": "opening_range",
+    "confluence": true,
+    "confluence_with": "dev VAL"
+   },
+   {
+    "name": "dev VAL",
+    "price": 7490.0,
+    "kind": "developing",
+    "confluence": true,
+    "confluence_with": "OR low"
+   },
+   {
+    "name": "O/N low",
+    "price": 7484.19,
+    "kind": "overnight",
+    "confluence": true,
+    "confluence_with": "session low"
+   },
+   {
+    "name": "session low",
+    "price": 7482.52,
+    "kind": "session",
+    "confluence": true,
+    "confluence_with": "O/N low"
+   },
+   {
+    "name": "prior low",
+    "price": 7422.24,
+    "kind": "prior",
+    "confluence": false,
+    "confluence_with": null
+   }
+  ]
+ },
+ "vol": {
+  "vix": 20.68,
+  "vix_change_pts": 0.76,
+  "vix_change_pct": 3.82,
+  "vix1d": 13.12,
+  "vix1d_pctile_20d": 35.0,
+  "vix1d_20d_low": 10.49,
+  "vix1d_20d_high": 36.8,
+  "vix1d_label": "normal",
+  "iv_high": false,
+  "vix9d": 20.24,
+  "vix3m": 21.45,
+  "vix6m": 22.66,
+  "vix9d_vix_ratio": 0.98,
+  "vix_vix3m_ratio": 0.96,
+  "term_structure_label": "contango",
+  "vvix": 101.7,
+  "vvix_change_pct": 3.32,
+  "skew": 150.34,
+  "rv10_pct": 29.83,
+  "rv20_pct": 22.11,
+  "vix_minus_rv20_pts": -1.43,
+  "expected_move_0dte_pts": 32.35,
+  "expected_move_0dte_pct": 0.43,
+  "straddle_strike": 7505.0,
+  "straddle_quote_time_et": "11:32",
+  "implied_range_low": 7470.39,
+  "implied_range_high": 7535.09,
+  "straddle_0935_pts": null,
+  "straddle_0935_time_et": null,
+  "straddle_0935_source": null,
+  "iv_crush_pct": -24.3,
+  "iv_crush_label": "crush done",
+  "iv_crush_basis": "estimate: VIX1D 14.45 at 09:35 ET to 13.12 now, times sqrt(time left); no 09:35 straddle print",
+  "theta_extrinsic_remaining_pct": 82.84,
+  "expected_move_day_pts": 39.05,
+  "expected_move_day_source": "time-scaled from current 0DTE straddle",
+  "expected_move_weekly_pts": 107.15,
+  "expected_move_weekly_pct": 1.43,
+  "weekly_expiry": "2026-11-13",
+  "cboe_stats_date": "2026-11-09",
+  "cboe_total_pcr": 0.88,
+  "cboe_index_pcr": 1.06,
+  "cboe_equity_pcr": 0.56,
+  "cboe_spx_pcr": null
+ },
+ "positioning": {
+  "chain_source": "^SPX",
+  "chain_fallback_used": false,
+  "expiry_0dte": "2026-11-10",
+  "pcr_volume_0dte": 1.09,
+  "pcr_oi_0dte": 1.48,
+  "call_oi_top_strikes": [
+   7690.0,
+   7790.0,
+   7850.0,
+   7650.0,
+   7750.0
+  ],
+  "put_oi_top_strikes": [
+   6900.0,
+   7225.0,
+   7125.0,
+   6100.0,
+   7400.0
+  ],
+  "nearest_oi_strike": 7400.0,
+  "spot_to_nearest_oi_strike_pts": 102.74,
+  "gex_vendor_url": null
+ },
+ "cross_asset": {
+  "es_change_pct": -0.76,
+  "nq_change_pct": -0.84,
+  "rty_change_pct": -1.35,
+  "us10y_yield_pct": 4.99,
+  "us10y_change_bp": 13.0,
+  "us5y_yield_pct": 4.83,
+  "us3m_yield_pct": 4.12,
+  "dxy": 102.35,
+  "dxy_change_pct": 0.69,
+  "oil": 86.65,
+  "oil_change_pct": -0.23,
+  "gold": 4033.6,
+  "gold_change_pct": -1.97,
+  "fred_as_of": "2026-11-09",
+  "fred_dgs10_pct": 4.86,
+  "fred_dgs2_pct": 4.51,
+  "fred_t10y2y_pct": 0.32,
+  "fred_dff_pct": 3.88,
+  "fred_vixcls": 19.92
+ },
+ "breadth": {
+  "spy_change_pct": -0.61,
+  "rsp_change_pct": -0.53,
+  "rsp_minus_spy_pct": 0.08,
+  "qqq_change_pct": -0.84,
+  "iwm_change_pct": -1.22,
+  "qqq_minus_iwm_pct": 0.38,
+  "sectors_up_count": 2,
+  "sectors_total": 11,
+  "sector_ranking": [
+   "XLF",
+   "XLE",
+   "XLP",
+   "XLC",
+   "XLY",
+   "XLU",
+   "XLV",
+   "XLRE",
+   "XLB",
+   "XLI",
+   "XLK"
+  ],
+  "sector_change_pct": {
+   "XLK": -1.09,
+   "XLF": 0.17,
+   "XLE": 0.12,
+   "XLV": -0.56,
+   "XLY": -0.4,
+   "XLP": -0.12,
+   "XLI": -0.86,
+   "XLU": -0.5,
+   "XLRE": -0.66,
+   "XLB": -0.76,
+   "XLC": -0.23
+  },
+  "megacap_change_pct": {
+   "NVDA": -5.29,
+   "AAPL": -0.9,
+   "MSFT": -0.42,
+   "AMZN": 0.92,
+   "GOOGL": -0.19,
+   "META": 0.39,
+   "TSLA": -0.43,
+   "AVGO": 2.51
+  },
+  "megacap_avg_change_pct": -0.43
+ },
+ "calendar": {
+  "events_today": [
+   {
+    "date": "2026-11-10",
+    "time_et": "04:00",
+    "name": "Speech - Governor Christopher J. Waller",
+    "category": "FED_SPEAKER",
+    "premium_relevance": "medium",
+    "url": "https://www.federalreserve.gov/newsevents/calendar.htm"
+   },
+   {
+    "date": "2026-11-10",
+    "time_et": "08:30",
+    "name": "Consumer Price Index",
+    "category": "CPI",
+    "premium_relevance": "high",
+    "url": "https://www.bls.gov/schedule/news_release/"
+   },
+   {
+    "date": "2026-11-10",
+    "time_et": "13:00",
+    "name": "10-Year Note auction",
+    "category": "AUCTION_10Y_20Y_30Y",
+    "premium_relevance": "medium",
+    "url": "https://www.treasurydirect.gov/auctions/upcoming/"
+   },
+   {
+    "date": "2026-11-10",
+    "time_et": "15:30",
+    "name": "Speech - Vice Chair for Supervision Michelle W. Bowman",
+    "category": "FED_SPEAKER",
+    "premium_relevance": "medium",
+    "url": "https://www.federalreserve.gov/newsevents/calendar.htm"
+   },
+   {
+    "date": "2026-11-10",
+    "time_et": "18:30",
+    "name": "Speech - Vice Chair for Supervision Michelle W. Bowman",
+    "category": "FED_SPEAKER",
+    "premium_relevance": "medium",
+    "url": "https://www.federalreserve.gov/newsevents/calendar.htm"
+   }
+  ],
+  "events_next_session": [],
+  "next_session_date": "2026-11-11",
+  "next_fomc_date": "2026-12-09",
+  "days_to_next_fomc": 29,
+  "earnings_prev_session": [],
+  "data_day": true,
+  "weekday": "Tuesday",
+  "expiry_kind": "daily",
+  "monthly_opex_date": "2026-11-20",
+  "days_to_monthly_opex": 10,
+  "opex_week": false,
+  "vix_expiry_today": false,
+  "month_end": false,
+  "quarter_end": false,
+  "high_event_later_today": false,
+  "next_high_event_time_et": null,
+  "headlines": [
+   {
+    "title": "U.S. gas prices fall below $4 for the first time since July",
+    "source": "CNBC Markets",
+    "published_utc": "2026-11-10T16:29:09+00:00"
+   },
+   {
+    "title": "Why stocks are falling and 10-year yields are back near 5% after Tuesday’s inflation report",
+    "source": "MarketWatch Top Stories",
+    "published_utc": "2026-11-10T16:28:00+00:00"
+   },
+   {
+    "title": "Federal Reserve Board announces approval of two applications by Mutual Federal Bancorp, MHC, and MFB Bancorp, Inc.",
+    "source": "Federal Reserve",
+    "published_utc": "2026-11-09T21:00:00+00:00"
+   },
+   {
+    "title": "Polymarket says annualized revenue has topped $1.8 billion",
+    "source": "CNBC Markets",
+    "published_utc": "2026-11-10T13:00:01+00:00"
+   },
+   {
+    "title": "‘We had the worst fight’: I want my husband to retire at 65, but I don’t want to lose his $280,000 salary. Is that unreasonable?",
+    "source": "MarketWatch Top Stories",
+    "published_utc": "2026-11-10T16:15:00+00:00"
+   },
+   {
+    "title": "Federal Reserve Board announces termination of enforcement action with Allegiant United Holdings, LLC, Nano Financial Holdings, Inc., and Nano Banc",
+    "source": "Federal Reserve",
+    "published_utc": "2026-11-05T16:00:00+00:00"
+   },
+   {
+    "title": "Fed Governor Waller sees December hike likely, opens door to possible half-point increase",
+    "source": "CNBC Markets",
+    "published_utc": "2026-11-10T09:00:01+00:00"
+   },
+   {
+    "title": "‘Boneless couches’ are the new futons",
+    "source": "MarketWatch Top Stories",
+    "published_utc": "2026-11-10T16:01:00+00:00"
+   },
+   {
+    "title": "Federal Reserve Board announces approval of application by The Bank of Nova Scotia",
+    "source": "Federal Reserve",
+    "published_utc": "2026-10-29T20:30:00+00:00"
+   },
+   {
+    "title": "Jensen Huang exit odds are low on prediction markets after Nvidia probe",
+    "source": "CNBC Markets",
+    "published_utc": "2026-11-09T18:46:01+00:00"
+   }
+  ]
+ },
+ "intraday": {
+  "minutes_since_open": 122,
+  "or_high": 7530.03,
+  "or_low": 7490.65,
+  "or_complete": true,
+  "spot_vs_or": "inside",
+  "vwap": 7504.42,
+  "vwap_method": "SPX typical price weighted by SPY 5m volume",
+  "spot_minus_vwap_pts": -1.68,
+  "rv_today_pct": 15.06,
+  "realized_range_em_fraction": 1.57,
+  "high_retested": false,
+  "low_retested": false,
+  "vwap_crosses": 3,
+  "vwap_crosses_by_cutoff": 3,
+  "vwap_cutoff_et": "11:00",
+  "vwap_check_final": true,
+  "vwap_crossed_both_ways": true,
+  "vwap_above_frac": 0.67,
+  "snapshot_time_et": "10:30",
+  "snapshot_spot": 7517.28,
+  "snapshot_vs_or": "inside",
+  "snapshot_vs_prior_va": "inside",
+  "dev_poc": 7502.5,
+  "dev_vah": 7506.0,
+  "dev_val": 7490.0,
+  "dev_poc_position": 0.33,
+  "cutoff_poc": 7502.5,
+  "cutoff_poc_position": 0.33,
+  "profile_shape": "b",
+  "accepted_outside_dev_va": "no",
+  "volume_ratio_recent": null
+ },
+ "regime": {
+  "label": "balance",
+  "lean": "open_inside_value",
+  "rules_fired": [
+   "balance: opened at 7513.09, inside yesterday's value area (7511–7566)",
+   "balance: price crossed today's average price (VWAP) 3 times by 11:00 ET; a range-bound day crosses it at least 2 times",
+   "balance: the most-traded price by 11:00 ET (7502.5) was 33% of the way up the range; a balanced day has it near the middle (33–67%)"
+  ],
+  "rules_failed": [
+   "gap rules: no real gap. The open was -0.49% from yesterday's close, and a gap day needs more than ±0.5%"
+  ],
+  "conflicts": [],
+  "prior_label": null,
+  "confirmation": "first classification",
+  "holding": true,
+  "holding_note": "price has not broken out of today's value area (7490–7506)"
+ },
+ "playbook": {
+  "live": "late",
+  "direction": null,
+  "instrument": "single option",
+  "early_status": "not live, it needs an uptrend, downtrend or gap-and-go day and today is a range-bound day",
+  "early_trigger": null,
+  "early_invalidation": null,
+  "early_window_et": "10:00–13:00",
+  "early_time_stop_et": "13:00",
+  "late_status": "ready, opens 14:30 ET / 11:30 PT",
+  "late_trigger": "two 5-minute closes in a row above the top of today's value area (7506), the nearer edge",
+  "late_window_et": "14:30–15:45",
+  "flat_by_et": "15:45",
+  "premium_cap": "not set (playbook.yaml)",
+  "reasons": [],
+  "flip": [
+   "two 5-minute closes in a row outside today's value area (7490–7506)"
+  ],
+  "do_not": [
+   "counter-trend on gap-and-go",
+   "new entries after 15:45 ET",
+   "add to losers"
+  ]
+ },
+ "data_quality": {
+  "null_fields": [
+   "vol.straddle_0935_pts",
+   "vol.cboe_spx_pcr"
+  ],
+  "fallbacks": [
+   "day expected move time-scaled from the current 0DTE straddle (no premarket brief today)",
+   "IV crush is an estimate from VIX1D (no 09:35 ET straddle print for today)",
+   "VWAP and volume profile use SPY volume as a proxy (SPX has no volume)"
+  ],
+  "source_errors": [],
+  "notes": [],
+  "manual_inputs": [
+   "the 09:35 ET straddle price, to measure how far option prices have deflated (enter it on the Generate page)"
+  ],
+  "sources": [
+   {
+    "name": "Yahoo daily bars",
+    "url": "https://finance.yahoo.com/quote/%5EGSPC/history",
+    "fetched_at_utc": "2026-11-10T16:32:25+00:00",
+    "ok": true
+   },
+   {
+    "name": "Yahoo 5-min bars",
+    "url": "https://finance.yahoo.com/quote/%5EGSPC/chart",
+    "fetched_at_utc": "2026-11-10T16:32:27+00:00",
+    "ok": true
+   },
+   {
+    "name": "Yahoo SPX chain",
+    "url": "https://finance.yahoo.com/quote/%5ESPX/options",
+    "fetched_at_utc": "2026-11-10T16:32:28+00:00",
+    "ok": true
+   },
+   {
+    "name": "Cboe daily stats",
+    "url": "https://cdn.cboe.com/data/us/options/market_statistics/daily/2026-11-09_daily_options",
+    "fetched_at_utc": "2026-11-10T16:32:28+00:00",
+    "ok": true
+   },
+   {
+    "name": "FRED",
+    "url": "https://fred.stlouisfed.org/",
+    "fetched_at_utc": "2026-11-10T16:32:29+00:00",
+    "ok": true
+   },
+   {
+    "name": "RSS: CNBC Markets",
+    "url": "https://www.cnbc.com/id/10000664/device/rss/rss.html",
+    "fetched_at_utc": "2026-11-10T16:32:29+00:00",
+    "ok": true
+   },
+   {
+    "name": "RSS: MarketWatch Top Stories",
+    "url": "https://feeds.content.dowjones.io/public/rss/mw_topstories",
+    "fetched_at_utc": "2026-11-10T16:32:29+00:00",
+    "ok": true
+   },
+   {
+    "name": "RSS: Federal Reserve",
+    "url": "https://www.federalreserve.gov/feeds/press_all.xml",
+    "fetched_at_utc": "2026-11-10T16:32:29+00:00",
+    "ok": true
+   },
+   {
+    "name": "Fed calendar",
+    "url": "https://www.federalreserve.gov/json/calendar.json",
+    "fetched_at_utc": "2026-11-10T16:32:30+00:00",
+    "ok": true
+   },
+   {
+    "name": "TreasuryDirect auctions",
+    "url": "https://www.treasurydirect.gov/TA_WS/securities/upcoming?format=json",
+    "fetched_at_utc": "2026-11-10T16:32:30+00:00",
+    "ok": true
+   },
+   {
+    "name": "ForexFactory calendar",
+    "url": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
+    "fetched_at_utc": "2026-11-10T16:32:30+00:00",
+    "ok": true
+   },
+   {
+    "name": "Yahoo earnings dates",
+    "url": "https://finance.yahoo.com/calendar/earnings",
+    "fetched_at_utc": "2026-11-10T16:32:31+00:00",
+    "ok": true
+   }
+  ]
+ }
+}
