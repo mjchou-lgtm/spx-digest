@@ -5,7 +5,7 @@
 #
 #   GITHUB_TOKEN=github_pat_… scripts/dispatch.sh premarket            # like the cron: only inside the window
 #   GITHUB_TOKEN=github_pat_… scripts/dispatch.sh afternoon true       # ignore the window, post now
-#   GITHUB_TOKEN=github_pat_… scripts/dispatch.sh straddle             # record the 09:35 ET straddle print
+#   GITHUB_TOKEN=github_pat_… scripts/dispatch.sh straddle             # 09:35 ET straddle print, cron rules (straddle true = capture now)
 #
 # The token is a fine-grained personal access token limited to this repository with
 # Actions: Read and write, nothing else. Never commit it.
@@ -18,7 +18,7 @@ repo=${DIGEST_REPO:-mjchou-lgtm/spx-digest}
 
 case "$post" in
   premarket|midsession|afternoon) inputs="{\"force\":\"$force\"}" ;;
-  straddle) inputs="{}" ;;
+  straddle) [ "$force" = true ] && inputs="{}" || inputs='{"scheduled":"true"}' ;;
   *) echo "unknown workflow: $post" >&2; exit 2 ;;
 esac
 

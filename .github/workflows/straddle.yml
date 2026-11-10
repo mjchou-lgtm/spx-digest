@@ -17,6 +17,10 @@ on:
         description: "YYYY-MM-DD for a hand-entered print (blank = today ET)"
         type: string
         default: ""
+      scheduled:
+        description: "Behave like the cron run: only 09:35-10:00 ET on a trading day, once per day"
+        type: boolean
+        default: false
 
 concurrency:
   group: digest-writer
@@ -39,7 +43,7 @@ jobs:
         env:
           PRICE: ${{ inputs.price }}
           DATE: ${{ inputs.date }}
-          SCHEDULED: ${{ github.event_name == 'schedule' }}
+          SCHEDULED: ${{ github.event_name == 'schedule' || inputs.scheduled == true }}
         run: |
           args=()
           [ "$SCHEDULED" = "true" ] && args+=(--scheduled)
