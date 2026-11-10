@@ -150,9 +150,17 @@ def test_versions_never_overwrite(tmp_path):
 
 # --- site build -------------------------------------------------------------------
 
-def test_build_site_from_fixture(tmp_path, brief_mid):
+def test_build_site_from_fixture(tmp_path, brief_mid, monkeypatch):
+    from datetime import datetime
+
     from digest import build, render
 
+    class _Nov6(datetime):  # the home page shows today's slots, so build as of the fixture's day
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 11, 6, 8, 45, tzinfo=tz)
+
+    monkeypatch.setattr(build, "datetime", _Nov6)
     root = tmp_path / "ds"
     paths = storage.next_paths(root, brief_mid.meta.date, brief_mid.meta.post_type)
     storage.write_json_new(paths.data("brief"), json.loads(brief_mid.model_dump_json()))
