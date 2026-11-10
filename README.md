@@ -100,7 +100,24 @@ Files are never overwritten (exclusive create). Posts from before schema 2.0 (20
 - `dry_run`: no Claude call, nothing committed, output uploaded as an artifact.
 - `confirm_empty`: publish on a non-trading day even if there's nothing to discuss.
 
-**Cron and DST.** GitHub cron is UTC and ignores DST, so each post has a PDT entry and a PST entry, and the script skips the one that is an hour off. `afternoon.yml` also has 09:00 PT entries that only do something on NYSE early-close days. GitHub often starts scheduled runs 5–30 minutes late, so the window allows up to 40 minutes. On 2026-11-04 and 11-05 this repo's scheduled runs started 5–7 hours late and all skipped; when that happens, use the Generate page on the site (or Run workflow) to post on demand. Holidays and early closes come from `pandas_market_calendars` (NYSE).
+**Cron and DST.** GitHub cron is UTC and ignores DST, so each post has a PDT entry and a PST entry, and the script skips the one that is an hour off. `afternoon.yml` also has 09:00 PT entries that only do something on NYSE early-close days. The window allows a run to start up to 40 minutes late. Holidays and early closes come from `pandas_market_calendars` (NYSE).
+
+**GitHub's scheduler does not run this repo's crons on time.** Every scheduled run from 2026-11-04 to 11-09 started 3–10 hours after its cron time (for example the 13:15 UTC premarket cron ran at 22:58 UTC on 11-09, and even the Monday 11:00 UTC calendar refresh ran at 21:22 UTC), so all of them skipped with a window message and nothing was posted. Nothing in the repo causes this: GitHub documents that scheduled runs can be delayed under load, and in practice low-activity repositories get the worst of it. Manual runs start within seconds, so the reliable path is to **trigger `workflow_dispatch` from an outside clock** at the slot times:
+
+1. Create a fine-grained token (Settings → Developer settings → Fine-grained tokens): only this repository, permission **Actions: Read and write**, nothing else, with an expiry.
+2. Put a job on any scheduler that can send an HTTP request at a fixed time of day in the `America/Los_Angeles` time zone (a hosted cron service, a Cloudflare Worker cron trigger, or a machine of your own that is awake), one per slot on weekdays: `06:15` premarket, `06:35` straddle, `07:45` midsession, `11:15` afternoon, plus `09:00` afternoon for early-close days. Each job is the request below, or `scripts/dispatch.sh <post>` where a shell is available.
+3. The workflow keeps its own checks (`force=false`: same time window, trading-day and early-close rules, one post per slot), so a job that fires on a holiday or at the wrong time simply skips.
+
+```
+POST https://api.github.com/repos/mjchou-lgtm/spx-digest/actions/workflows/premarket.yml/dispatches
+Accept: application/vnd.github+json
+Authorization: Bearer <token>
+X-GitHub-Api-Version: 2022-11-28
+
+{"ref":"main","inputs":{"force":"false"}}
+```
+
+(`straddle.yml` takes `{"ref":"main","inputs":{}}`.) Until that is set up, the Generate page on the site (or Actions → Run workflow) posts on demand.
 
 On early-close days there is **no `midsession` post**: the scheduled run skips with a one-line reason, and the afternoon post builds on the premarket post instead. A manual run with `force` can still produce one.
 
