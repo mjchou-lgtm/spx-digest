@@ -1,7 +1,7 @@
 {
   "source": "https://www.treasurydirect.gov/TA_WS/securities/upcoming?format=json",
   "note": "Only announced auctions (about one week ahead). Refreshed weekly; also fetched live each run.",
-  "refreshed_at": "2026-11-09T21:23:58+00:00",
+  "refreshed_at": "2026-11-16T20:55:13+00:00",
   "events": [
     {
       "date": "2026-11-09",
@@ -32,14 +32,46 @@
       "event": "20-Year Bond auction",
       "security_type": "Bond",
       "security_term": "20-Year",
-      "time_et": null,
-      "offering_amount": ""
+      "time_et": "13:00",
+      "offering_amount": "16000000000"
     },
     {
       "date": "2026-11-19",
       "event": "9-Year 8-Month Note auction",
       "security_type": "Note",
       "security_term": "9-Year 8-Month",
+      "time_et": "13:00",
+      "offering_amount": "19000000000"
+    },
+    {
+      "date": "2026-11-23",
+      "event": "2-Year Note auction",
+      "security_type": "Note",
+      "security_term": "2-Year",
+      "time_et": null,
+      "offering_amount": ""
+    },
+    {
+      "date": "2026-11-24",
+      "event": "1-Year 11-Month Note auction",
+      "security_type": "Note",
+      "security_term": "1-Year 11-Month",
+      "time_et": null,
+      "offering_amount": ""
+    },
+    {
+      "date": "2026-11-24",
+      "event": "5-Year Note auction",
+      "security_type": "Note",
+      "security_term": "5-Year",
+      "time_et": null,
+      "offering_amount": ""
+    },
+    {
+      "date": "2026-11-25",
+      "event": "7-Year Note auction",
+      "security_type": "Note",
+      "security_term": "7-Year",
       "time_et": null,
       "offering_amount": ""
     }
